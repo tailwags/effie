@@ -3,8 +3,7 @@ use core::ffi::c_void;
 use crate::{
     protocols::{SimpleTextInput, SimpleTextOutput},
     tables::{BootServices, RuntimeServices, TableHeader},
-    util::u16_slice_from_ptr,
-    Guid, Handle,
+    Guid, Handle, WStr,
 };
 
 use super::{Signature, SpecificationRevision};
@@ -47,8 +46,8 @@ impl SystemTable {
         self.hdr.revision
     }
 
-    pub fn firmware_vendor(&self) -> &[u16] {
-        unsafe { u16_slice_from_ptr(self.firmware_vendor) }
+    pub fn firmware_vendor(&self) -> &WStr {
+        unsafe { WStr::from_ptr(self.firmware_vendor) }
     }
 
     pub fn con_in(&self) -> &SimpleTextInput {

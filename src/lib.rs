@@ -5,14 +5,12 @@
 
 extern crate alloc;
 
-
 use core::mem::MaybeUninit;
 
 mod allocator;
 mod protocol;
 mod status;
 mod types;
-mod util;
 mod wstr;
 
 pub mod protocols;

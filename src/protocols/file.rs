@@ -1,18 +1,10 @@
-use core::{
-    alloc::Layout,
-    ffi::c_void,
-    mem::{size_of, MaybeUninit},
-};
+use core::{ffi::c_void, mem::MaybeUninit};
 
 use alloc::vec;
-use alloc::{
-    alloc::{alloc, dealloc},
-    boxed::Box,
-    vec::Vec,
-};
+
 use itoa::Integer;
 
-use crate::{system_table, util::u16_slice_from_ptr, Guid, Result, Status, Time};
+use crate::{system_table, Guid, Result, Status, Time, WStr};
 
 #[repr(C)]
 pub struct File {
@@ -79,8 +71,8 @@ impl FileInfo {
         [0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b],
     );
 
-    pub fn file_name(&self) -> &[u16] {
-        unsafe { u16_slice_from_ptr(self.file_name.as_ptr()) }
+    pub fn file_name(&self) -> &WStr {
+        unsafe { WStr::from_ptr(self.file_name.as_ptr()) }
     }
 }
 
@@ -118,7 +110,7 @@ impl File {
     pub fn get_info(&self) -> Result<&mut FileInfo> {
         let mut buf = vec![0u8; 1];
 
-        let mut len = buf.len();
+        let len = buf.len();
 
         let status =
             unsafe { (self.get_info)(self, &FileInfo::GUID, &mut 0, buf.as_mut_ptr().cast()) };
@@ -131,7 +123,7 @@ impl File {
             let offset_of_str = 80usize;
             let name_ptr = ptr.add(offset_of_str).cast::<u16>();
 
-            let name_len = u16_slice_from_ptr(name_ptr).len();
+            let name_len = WStr::from_ptr(name_ptr).to_bytes().len();
             Ok(&mut *core::ptr::from_raw_parts_mut(
                 ptr.cast::<()>(),
                 name_len,

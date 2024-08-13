@@ -1,4 +1,4 @@
-use crate::{util::u16_slice_from_ptr, Guid, Protocol};
+use crate::{Guid, Protocol, WStr};
 
 // FIXME: EFI_DEVICE_PATH_PROTOCOL
 #[repr(C)]
@@ -25,9 +25,9 @@ impl DevicePath {
     //     Self { inner: null_mut() }
     // }
 
-    pub fn as_path_name(&self) -> Option<&[u16]> {
+    pub fn as_path_name(&self) -> Option<&WStr> {
         match (self.ty, self.sub_type) {
-            (4, 4) => Some(unsafe { u16_slice_from_ptr(self.data.as_ptr().cast()) }),
+            (4, 4) => Some(unsafe { WStr::from_ptr(self.data.as_ptr().cast()) }),
             _ => None,
         }
     }

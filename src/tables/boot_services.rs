@@ -1,8 +1,4 @@
-use core::{
-    ffi::c_void,
-    mem::MaybeUninit,
-    ptr::{null, null_mut},
-};
+use core::{ffi::c_void, mem::MaybeUninit, ptr::null_mut};
 
 use crate::{protocols::DevicePath, tables::TableHeader, Guid, Handle, Protocol, Result, Status};
 
