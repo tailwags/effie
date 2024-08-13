@@ -1,0 +1,18 @@
+[package]
+name = "effie-macros"
+version = "0.0.1"
+edition = "2021"
+license = "Apache-2.0"
+authors = ["Federico Maria Morrone <contact@morrone.dev>"]
+description = "Macros for effie"
+documentation = "https://docs.rs/effie-macros"
+repository = "https://github.com/bread-bootloader/bread"
+include = ["src/**/*.rs", "../README.md", "LICENSE"]
+readme = "../README.md"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "1.0.36"
+syn = { version = "2.0.74", default-features = false, features = ["parsing", "proc-macro"] }
