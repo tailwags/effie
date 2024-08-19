@@ -1,6 +1,6 @@
-use effie_macros::w;
+use effie_macros::w_internal;
 
-use crate::{Guid, Protocol, Result, Status};
+use crate::{Guid, Protocol, Result, Status, WStr};
 
 #[repr(C)]
 pub struct SimpleTextOutput {
@@ -44,13 +44,13 @@ impl Protocol for SimpleTextOutput {
 }
 
 impl SimpleTextOutput {
-    pub fn output_string(&self, string: &[u16]) -> Result {
+    pub fn output_string(&self, string: &WStr) -> Result {
         unsafe { (self.output_string)(self, string.as_ptr()) }.as_result()
     }
 
-    pub fn output_line(&self, string: &[u16]) -> Result {
+    pub fn output_line(&self, string: &WStr) -> Result {
         self.output_string(string)?;
-        self.output_string(w!("\r\n"))
+        self.output_string(w_internal!("\r\n"))
     }
 
     pub fn clear_screen(&self) -> Result {

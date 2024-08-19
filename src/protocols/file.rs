@@ -77,7 +77,7 @@ impl FileInfo {
 }
 
 impl File {
-    pub fn open(&self, file_name: &[u16], open_mode: FileMode) -> Result<&File> {
+    pub fn open(&self, file_name: &WStr, open_mode: FileMode) -> Result<&File> {
         let mut file = MaybeUninit::<*mut File>::uninit();
 
         unsafe { (self.open)(self, file.as_mut_ptr(), file_name.as_ptr(), open_mode, 0) }
@@ -145,7 +145,7 @@ fn _print_utf8(string: &str) -> Result {
     let system_table = system_table();
 
     for c in string.encode_utf16() {
-        system_table.con_out().output_string(&[c, 0])?;
+        // system_table.con_out().output_string(&[c, 0])?;
     }
 
     // system_table.con_out().output_string(w!("\r\n"))?;
