@@ -16,5 +16,5 @@ readme = "README.md"
 [dependencies]
 bitflags = "2.6.0"
 uguid = "2.2.0"
-itoa = "1.0.11"
+itoa = "1.0.14"
 effie-macros = { version = "0.0.1", path = "macros" }
