@@ -1,5 +1,4 @@
 #![no_std]
-#![feature(extended_varargs_abi_support)]
 #![feature(allocator_api)]
 #![feature(ptr_metadata)]
 
