@@ -39,8 +39,10 @@ extern "efiapi" fn efi_main(image_handle: Handle, system_table: &'static SystemT
         fn main() -> Result;
     }
 
-    unsafe { SYSTEM_TABLE.write(system_table) };
-    unsafe { IMAGE_HANDLE.write(image_handle) };
+    unsafe {
+        (*&raw mut SYSTEM_TABLE).write(system_table);
+        (*&raw mut IMAGE_HANDLE).write(image_handle);
+    };
 
     unsafe {
         if let Err(status) = main() {
