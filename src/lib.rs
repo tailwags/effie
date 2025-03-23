@@ -40,6 +40,7 @@ extern "efiapi" fn efi_main(image_handle: Handle, system_table: &'static SystemT
         fn main() -> Result;
     }
 
+    #[allow(clippy::deref_addrof)]
     unsafe {
         (*&raw mut SYSTEM_TABLE).write(system_table);
         (*&raw mut IMAGE_HANDLE).write(image_handle);

@@ -18,6 +18,6 @@ unsafe impl GlobalAlloc for Allocator {
     unsafe fn dealloc(&self, ptr: *mut u8, _layout: core::alloc::Layout) {
         let boot_services = system_table().boot_services();
 
-        let _ = boot_services.free_pool(ptr.cast());
+        let _ = unsafe { boot_services.free_pool(ptr.cast()) };
     }
 }

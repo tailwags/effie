@@ -1,3 +1,5 @@
+#![allow(unused)] // FIXME: remove this in the future
+
 use core::{ffi::c_void, mem::MaybeUninit, ptr::null_mut};
 
 use crate::{Guid, Handle, Protocol, Result, Status, protocols::DevicePath, tables::TableHeader};
@@ -288,12 +290,16 @@ impl BootServices {
     }
 
     // FIXME: check for errors
+    // TODO: consider using a newtype wrapper that frees on drop
     pub fn allocate_pool(&self, memory_type: MemoryType, size: usize) -> Result<*mut c_void> {
         let mut buffer = null_mut();
         unsafe { (self.allocate_pool)(memory_type, size, &mut buffer) }.as_result_with(buffer)
     }
 
-    pub fn free_pool(&self, buffer: *mut c_void) -> Result {
+    /// # Safety
+    ///
+    /// The caller must ensure the pointer was allocated by allocate_pool
+    pub unsafe fn free_pool(&self, buffer: *mut c_void) -> Result {
         unsafe { (self.free_pool)(buffer) }.as_result()
     }
 

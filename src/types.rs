@@ -5,6 +5,9 @@ use core::{ffi::c_void, ptr::null_mut};
 pub struct Handle(*mut c_void);
 
 impl Handle {
+    /// # Safety
+    ///
+    /// The caller must ensure it's passing a valid pointer
     pub const unsafe fn from_raw(raw: *mut c_void) -> Self {
         Self(raw)
     }

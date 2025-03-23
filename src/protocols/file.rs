@@ -141,12 +141,12 @@ fn _print_num<I: Integer>(i: I) -> Result {
     Ok(())
 }
 
-fn _print_utf8(string: &str) -> Result {
-    let system_table = system_table();
+fn _print_utf8(_string: &str) -> Result {
+    // let system_table = system_table();
 
-    for c in string.encode_utf16() {
-        // system_table.con_out().output_string(&[c, 0])?;
-    }
+    // for c in string.encode_utf16() {
+    //     // system_table.con_out().output_string(&[c, 0])?;
+    // }
 
     // system_table.con_out().output_string(w!("\r\n"))?;
 
