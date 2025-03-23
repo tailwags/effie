@@ -1,9 +1,9 @@
 use core::ffi::c_void;
 
 use crate::{
+    Guid, Handle, Protocol, Status,
     protocols::DevicePath,
     tables::{MemoryType, SystemTable},
-    Guid, Handle, Protocol, Status,
 };
 
 #[repr(C)]

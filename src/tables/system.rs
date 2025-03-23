@@ -1,9 +1,9 @@
 use core::ffi::c_void;
 
 use crate::{
+    Guid, Handle, WStr,
     protocols::{SimpleTextInput, SimpleTextOutput},
     tables::{BootServices, RuntimeServices, TableHeader},
-    Guid, Handle, WStr,
 };
 
 use super::{Signature, SpecificationRevision};

@@ -59,7 +59,7 @@ impl SpecificationRevision {
     pub const EFI_1_02: Self = Self((1 << 16) | (02));
     pub const EFI: Self = Self::EFI_2_100;
 
-    pub const fn as_str(&self) -> &WStr{
+    pub const fn as_str(&self) -> &WStr {
         match *self {
             Self::EFI_2_100 => w_internal!("2.10"),
             Self::EFI_2_90 => w_internal!("2.9"),

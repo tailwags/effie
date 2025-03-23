@@ -90,19 +90,33 @@ impl Status {
             Self::LOAD_ERROR => w_internal!("The image failed to load."),
             Self::INVALID_PARAMETER => w_internal!("A parameter was incorrect."),
             Self::UNSUPPORTED => w_internal!("The operation is not supported."),
-            Self::BAD_BUFFER_SIZE => w_internal!("The buffer was not the proper size for the request."),
-            Self::BUFFER_TOO_SMALL => w_internal!("The buffer is not large enough to hold the requested data."),
+            Self::BAD_BUFFER_SIZE => {
+                w_internal!("The buffer was not the proper size for the request.")
+            }
+            Self::BUFFER_TOO_SMALL => {
+                w_internal!("The buffer is not large enough to hold the requested data.")
+            }
             Self::NOT_READY => w_internal!("There is no data pending upon return."),
-            Self::DEVICE_ERROR => w_internal!("The physical device reported an error while attempting the operation."),
+            Self::DEVICE_ERROR => {
+                w_internal!("The physical device reported an error while attempting the operation.")
+            }
             Self::WRITE_PROTECTED => w_internal!("The device cannot be written to."),
             Self::OUT_OF_RESOURCES => w_internal!("A resource has run out."),
-            Self::VOLUME_CORRUPTED => w_internal!("An inconstancy was detected on the file system causing the operating to fail."),
+            Self::VOLUME_CORRUPTED => w_internal!(
+                "An inconstancy was detected on the file system causing the operating to fail."
+            ),
             Self::VOLUME_FULL => w_internal!("There is no more space on the file system."),
-            Self::NO_MEDIA => w_internal!("The device does not contain any medium to perform the operation."),
-            Self::MEDIA_CHANGED => w_internal!("The medium in the device has changed since the last access."),
+            Self::NO_MEDIA => {
+                w_internal!("The device does not contain any medium to perform the operation.")
+            }
+            Self::MEDIA_CHANGED => {
+                w_internal!("The medium in the device has changed since the last access.")
+            }
             Self::NOT_FOUND => w_internal!("The item was not found."),
             Self::ACCESS_DENIED => w_internal!("Access was denied."),
-            Self::NO_RESPONSE => w_internal!("The server was not found or did not respond to the request."),
+            Self::NO_RESPONSE => {
+                w_internal!("The server was not found or did not respond to the request.")
+            }
             Self::NO_MAPPING => w_internal!("A mapping to a device does not exist."),
             Self::TIMEOUT => w_internal!("The timeout time expired."),
             Self::NOT_STARTED => w_internal!("The protocol has not been started."),
@@ -110,24 +124,46 @@ impl Status {
             Self::ABORTED => w_internal!("The operation was aborted."),
             Self::ICMP_ERROR => w_internal!("An ICMP error occurred during the network operation."),
             Self::TFTP_ERROR => w_internal!("A TFTP error occurred during the network operation."),
-            Self::PROTOCOL_ERROR => w_internal!("A protocol error occurred during the network operation."),
-            Self::INCOMPATIBLE_VERSION => w_internal!("The function encountered an internal version that was incompatible with a version requested by the caller."),
-            Self::SECURITY_VIOLATION => w_internal!("The function was not performed due to a security violation."),
+            Self::PROTOCOL_ERROR => {
+                w_internal!("A protocol error occurred during the network operation.")
+            }
+            Self::INCOMPATIBLE_VERSION => w_internal!(
+                "The function encountered an internal version that was incompatible with a version requested by the caller."
+            ),
+            Self::SECURITY_VIOLATION => {
+                w_internal!("The function was not performed due to a security violation.")
+            }
             Self::CRC_ERROR => w_internal!("A CRC error was detected."),
             Self::END_OF_MEDIA => w_internal!("Beginning or end of media was reached."),
             Self::END_OF_FILE => w_internal!("The end of the file was reached."),
             Self::INVALID_LANGUAGE => w_internal!("The language specified was invalid."),
-            Self::COMPROMISED_DATA => w_internal!("The security status of the data is unknown or compromised and the data must be updated or replaced to restore a valid security status."),
-            Self::IP_ADDRESS_CONFLICT => w_internal!("There is an address conflict address allocation"),
+            Self::COMPROMISED_DATA => w_internal!(
+                "The security status of the data is unknown or compromised and the data must be updated or replaced to restore a valid security status."
+            ),
+            Self::IP_ADDRESS_CONFLICT => {
+                w_internal!("There is an address conflict address allocation")
+            }
             Self::HTTP_ERROR => w_internal!("A HTTP error occurred during the network operation."),
-            Self::WARN_UNKNOWN_GLYPH => w_internal!("The string contained one or more characters that the device could not render and were skipped."),
-            Self::WARN_DELETE_FAILURE => w_internal!("The handle was closed, but the file was not deleted."),
-            Self::WARN_WRITE_FAILURE => w_internal!("The handle was closed, but the data to the file was not flushed properly."),
+            Self::WARN_UNKNOWN_GLYPH => w_internal!(
+                "The string contained one or more characters that the device could not render and were skipped."
+            ),
+            Self::WARN_DELETE_FAILURE => {
+                w_internal!("The handle was closed, but the file was not deleted.")
+            }
+            Self::WARN_WRITE_FAILURE => w_internal!(
+                "The handle was closed, but the data to the file was not flushed properly."
+            ),
             // Self::BUFFER_TOO_SMALL => w_internal!("The resulting buffer was too small, and the data was truncated to the buffer size."),
-            Self::WARN_STALE_DATA => w_internal!("The data has not been updated within the timeframe set by local policy for this type of data."),
-            Self::WARN_FILE_SYSTEM => w_internal!("The resulting buffer contains UEFI-compliant file system."),
-            Self::WARN_RESET_REQUIRED => w_internal!("The operation will be processed across a system reset."),
-            _ => w_internal!("Unknown status.")
+            Self::WARN_STALE_DATA => w_internal!(
+                "The data has not been updated within the timeframe set by local policy for this type of data."
+            ),
+            Self::WARN_FILE_SYSTEM => {
+                w_internal!("The resulting buffer contains UEFI-compliant file system.")
+            }
+            Self::WARN_RESET_REQUIRED => {
+                w_internal!("The operation will be processed across a system reset.")
+            }
+            _ => w_internal!("Unknown status."),
         }
     }
 }

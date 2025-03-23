@@ -4,7 +4,7 @@ use alloc::vec;
 
 use itoa::Integer;
 
-use crate::{system_table, Guid, Result, Status, Time, WStr};
+use crate::{Guid, Result, Status, Time, WStr, system_table};
 
 #[repr(C)]
 pub struct File {

@@ -1,6 +1,6 @@
 use core::mem::MaybeUninit;
 
-use crate::{protocols::File, Guid, Protocol, Result, Status};
+use crate::{Guid, Protocol, Result, Status, protocols::File};
 
 #[repr(C)]
 pub struct SimpleFilesystem {

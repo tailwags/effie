@@ -34,9 +34,9 @@ static mut IMAGE_HANDLE: MaybeUninit<Handle> = MaybeUninit::uninit();
 #[global_allocator]
 static mut ALLOCATOR: Allocator = Allocator;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "efiapi" fn efi_main(image_handle: Handle, system_table: &'static SystemTable) -> Status {
-    extern "Rust" {
+    unsafe extern "Rust" {
         fn main() -> Result;
     }
 

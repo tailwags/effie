@@ -1,6 +1,6 @@
 use core::{ffi::c_void, mem::MaybeUninit, ptr::null_mut};
 
-use crate::{protocols::DevicePath, tables::TableHeader, Guid, Handle, Protocol, Result, Status};
+use crate::{Guid, Handle, Protocol, Result, Status, protocols::DevicePath, tables::TableHeader};
 
 use super::Signature;
 
