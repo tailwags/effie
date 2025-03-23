@@ -1,6 +1,7 @@
 #![no_std]
 #![feature(allocator_api)]
 #![feature(ptr_metadata)]
+#![feature(extended_varargs_abi_support)]
 
 extern crate alloc;
 
