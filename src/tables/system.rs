@@ -28,7 +28,7 @@ pub struct SystemTable {
     runtime_services: *const RuntimeServices,
     pub(crate) boot_services: *const BootServices,
     number_of_table_entries: usize,
-    configuration_table: ConfigurationTable,
+    configuration_table: *const ConfigurationTable,
 }
 
 #[repr(C)]
@@ -59,10 +59,18 @@ impl SystemTable {
     }
 
     pub fn boot_services(&self) -> &BootServices {
+        debug_assert!(
+            !self.boot_services.is_null(),
+            "boot services unavailable (ExitBootServices already called?)"
+        );
         unsafe { &*self.boot_services }
     }
 
     pub fn runtime_services(&self) -> &RuntimeServices {
+        debug_assert!(
+            !self.runtime_services.is_null(),
+            "runtime services pointer is null"
+        );
         unsafe { &*self.runtime_services }
     }
 }
