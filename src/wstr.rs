@@ -437,8 +437,7 @@ impl WString {
         let (c, units) = if (0xDC00..=0xDFFF).contains(&last) && len >= 3 {
             let prev = self.inner[len - 3];
             if (0xD800..=0xDBFF).contains(&prev) {
-                let cp =
-                    0x10000u32 + ((prev as u32 - 0xD800) << 10) + (last as u32 - 0xDC00);
+                let cp = 0x10000u32 + ((prev as u32 - 0xD800) << 10) + (last as u32 - 0xDC00);
                 // SAFETY: valid surrogate pair
                 (unsafe { char::from_u32_unchecked(cp) }, 2usize)
             } else {
