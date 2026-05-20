@@ -59,16 +59,14 @@ impl Status {
     }
 
     pub const fn as_result(self) -> Result {
-        match self {
-            Self::SUCCESS => Ok(()),
-            status => Err(status),
-        }
+        if self.is_error() { Err(self) } else { Ok(()) }
     }
 
     pub fn as_result_with<T>(self, other: T) -> Result<T> {
-        match self {
-            Self::SUCCESS => Ok(other),
-            status => Err(status),
+        if self.is_error() {
+            Err(self)
+        } else {
+            Ok(other)
         }
     }
 
@@ -76,12 +74,12 @@ impl Status {
         matches!(self, Self::SUCCESS)
     }
 
-    pub fn is_error(self) -> bool {
-        todo!()
+    pub const fn is_error(self) -> bool {
+        self.0 & (1 << (usize::BITS - 1)) != 0
     }
 
-    pub fn is_warning(self) -> bool {
-        todo!()
+    pub const fn is_warning(self) -> bool {
+        self.0 != 0 && !self.is_error()
     }
 
     pub const fn description(&self) -> &WStr {
