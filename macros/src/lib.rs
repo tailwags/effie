@@ -9,7 +9,7 @@ pub fn w(input: TokenStream) -> TokenStream {
     let encoded = lit.value().encode_utf16().collect::<Vec<u16>>();
 
     quote! {
-        unsafe {::effie::WStr::from_bytes(&[#( #encoded, )* 0u16])}
+        unsafe {::effie::WStr::from_slice_unchecked(&[#( #encoded, )* 0u16])}
     }
     .into()
 }
@@ -22,7 +22,7 @@ pub fn w_internal(input: TokenStream) -> TokenStream {
     let encoded = lit.value().encode_utf16().collect::<Vec<u16>>();
 
     quote! {
-       unsafe { crate::WStr::from_bytes(&[#( #encoded, )* 0u16])}
+       unsafe { crate::WStr::from_slice_unchecked(&[#( #encoded, )* 0u16])}
     }
     .into()
 }

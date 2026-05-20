@@ -20,7 +20,7 @@ pub use allocator::Allocator;
 pub use protocol::Protocol;
 pub use status::{Result, Status};
 pub use types::*;
-pub use wstr::WStr;
+pub use wstr::{CharIndices, Chars, WStr, WString};
 
 pub use uguid::Guid;
 
@@ -32,7 +32,7 @@ static mut SYSTEM_TABLE: MaybeUninit<&SystemTable> = MaybeUninit::uninit();
 static mut IMAGE_HANDLE: MaybeUninit<Handle> = MaybeUninit::uninit();
 
 #[global_allocator]
-static mut ALLOCATOR: Allocator = Allocator;
+static ALLOCATOR: Allocator = Allocator;
 
 #[unsafe(no_mangle)]
 extern "efiapi" fn efi_main(image_handle: Handle, system_table: &'static SystemTable) -> Status {
