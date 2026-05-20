@@ -14,7 +14,7 @@ include = ["src/**/*.rs", "README.md", "LICENSE"]
 readme = "README.md"
 
 [dependencies]
-bitflags = "2.9.3"
+bitflags = "2.11.1"
 uguid = "2.2.1"
-itoa = "1.0.15"
+itoa = "1.0.18"
 effie-macros = { version = "0.0.1", path = "macros" }
