@@ -1,8 +1,13 @@
-use core::{ffi::c_void, mem::MaybeUninit};
+use core::{
+    ffi::c_void,
+    mem::MaybeUninit,
+    ops::{Deref, DerefMut},
+    ptr::NonNull,
+};
 
 use alloc::vec;
 
-use crate::{Guid, Result, Status, Time, WStr};
+use crate::{Guid, HasGuid, Result, Status, Time, WStr, WString};
 
 #[repr(C)]
 pub struct File {
@@ -54,40 +59,46 @@ pub struct File {
     flush_ex: unsafe extern "efiapi" fn(this: *mut Self, token: *mut c_void) -> Status,
 }
 
-/// RAII owner of an open `EFI_FILE_PROTOCOL` handle.
-///
-/// Automatically calls `EFI_FILE_PROTOCOL.Close` on drop. Use
-/// [`FileHandle::into_raw`] to take ownership of the raw pointer without
-/// closing it.
-pub struct FileHandle(pub(crate) *mut File);
+#[repr(transparent)]
+pub struct FileHandle {
+    raw: NonNull<File>,
+}
 
 impl FileHandle {
-    /// Consumes the handle and returns the raw pointer without closing the file.
-    /// The caller is responsible for eventually closing the handle.
-    pub fn into_raw(self) -> *mut File {
-        let ptr = self.0;
-        core::mem::forget(self);
-        ptr
+    pub(crate) fn new(raw: *mut File) -> Result<Self> {
+        if raw.is_null() {
+            return Err(Status::UNSUPPORTED);
+        }
+        Ok(Self {
+            raw: unsafe { NonNull::new_unchecked(raw) },
+        })
+    }
+
+    pub const fn get(&self) -> &File {
+        unsafe { self.raw.as_ref() }
+    }
+
+    pub const fn get_mut(&mut self) -> &mut File {
+        unsafe { self.raw.as_mut() }
     }
 }
 
 impl Drop for FileHandle {
     fn drop(&mut self) {
-        // Errors from Close cannot be propagated here; ignore them.
-        let _ = unsafe { ((*self.0).close)(self.0) };
+        let _ = self.close();
     }
 }
 
-impl core::ops::Deref for FileHandle {
+impl Deref for FileHandle {
     type Target = File;
     fn deref(&self) -> &File {
-        unsafe { &*self.0 }
+        self.get()
     }
 }
 
-impl core::ops::DerefMut for FileHandle {
+impl DerefMut for FileHandle {
     fn deref_mut(&mut self) -> &mut File {
-        unsafe { &mut *self.0 }
+        self.get_mut()
     }
 }
 
@@ -109,19 +120,56 @@ impl core::ops::BitOr for FileMode {
 }
 
 #[repr(C)]
+#[derive(Clone, Copy)]
+struct FileInfoHeader {
+    size: u64,
+    file_size: u64,
+    physical_size: u64,
+    create_time: Time,
+    last_access_time: Time,
+    modification_time: Time,
+    attribute: u64,
+}
+
+const FILE_INFO_HEADER_SIZE: usize = core::mem::size_of::<FileInfoHeader>();
+
 pub struct FileInfo {
-    pub size: u64,
-    pub file_size: u64,
-    pub physical_size: u64,
-    pub create_time: Time,
-    pub last_access_time: Time,
-    pub modification_time: Time,
-    pub attribute: u64,
-    pub file_name: [u16],
+    header: FileInfoHeader,
+    file_name: WString,
 }
 
 impl FileInfo {
-    pub(crate) const GUID: Guid = Guid::new(
+    pub const fn file_size(&self) -> u64 {
+        self.header.file_size
+    }
+
+    pub const fn physical_size(&self) -> u64 {
+        self.header.physical_size
+    }
+
+    pub const fn create_time(&self) -> Time {
+        self.header.create_time
+    }
+
+    pub const fn last_access_time(&self) -> Time {
+        self.header.last_access_time
+    }
+
+    pub const fn modification_time(&self) -> Time {
+        self.header.modification_time
+    }
+
+    pub const fn attribute(&self) -> u64 {
+        self.header.attribute
+    }
+
+    pub fn file_name(&self) -> &WStr {
+        &self.file_name
+    }
+}
+
+impl HasGuid for FileInfoHeader {
+    const GUID: Guid = Guid::new(
         0x09576e92_u32.to_ne_bytes(),
         0x6d3f_u16.to_ne_bytes(),
         0x11d2_u16.to_ne_bytes(),
@@ -129,40 +177,6 @@ impl FileInfo {
         0x39,
         [0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b],
     );
-
-    /// Interprets a raw byte buffer returned by [`File::get_info`] as a `&FileInfo`.
-    ///
-    /// # Safety
-    ///
-    /// `bytes` must have been filled by a successful `EFI_FILE_PROTOCOL.GetInfo`
-    /// call and must be at least as large as the size reported by firmware.
-    pub unsafe fn from_bytes(bytes: &[u8]) -> &Self {
-        // `offset_of!` does not support DSTs. Use a sized sentinel with the same
-        // leading fields to obtain the offset of `file_name` at compile time.
-        #[repr(C)]
-        struct FileInfoSized {
-            size: u64,
-            file_size: u64,
-            physical_size: u64,
-            create_time: Time,
-            last_access_time: Time,
-            modification_time: Time,
-            attribute: u64,
-        }
-        const NAME_OFFSET: usize = core::mem::size_of::<FileInfoSized>();
-        // Catch any future layout divergence between FileInfoSized and FileInfo.
-        const _: () = assert!(
-            NAME_OFFSET == 80,
-            "FileInfoSized layout diverged from EFI_FILE_INFO"
-        );
-
-        let name_len = bytes.len().saturating_sub(NAME_OFFSET) / core::mem::size_of::<u16>();
-        unsafe { &*core::ptr::from_raw_parts(bytes.as_ptr().cast::<()>(), name_len) }
-    }
-
-    pub fn file_name(&self) -> &WStr {
-        unsafe { WStr::from_ptr(self.file_name.as_ptr()) }
-    }
 }
 
 impl File {
@@ -177,7 +191,11 @@ impl File {
 
         status.into_result()?;
 
-        Ok(FileHandle(unsafe { file.assume_init() }))
+        FileHandle::new(unsafe { file.assume_init() })
+    }
+
+    fn close(&mut self) -> Result<()> {
+        unsafe { (self.close)(self) }.into_result()
     }
 
     pub fn set_position(&mut self, position: u64) -> Result {
@@ -222,17 +240,19 @@ impl File {
         unsafe { (self.flush)(self) }.into_result()
     }
 
-    /// Returns the raw `EFI_FILE_INFO` bytes for this file handle.
-    /// Use [`FileInfo::from_bytes`] to interpret the result.
-    pub fn get_info(&mut self) -> Result<alloc::vec::Vec<u8>> {
+    /// Returns the `EFI_FILE_INFO` for this file handle.
+    pub fn get_info(&mut self) -> Result<FileInfo> {
         let mut size: usize = 0;
 
-        // First call: ask firmware for the required buffer size.
-        let status =
-            unsafe { (self.get_info)(self, &FileInfo::GUID, &mut size, core::ptr::null_mut()) };
+        let status = unsafe {
+            (self.get_info)(
+                self,
+                &<FileInfoHeader as HasGuid>::GUID,
+                &mut size,
+                core::ptr::null_mut(),
+            )
+        };
 
-        // Firmware must return BUFFER_TOO_SMALL with the required size.
-        // Any other response (including an unexpected SUCCESS) is an error.
         if status != Status::BUFFER_TOO_SMALL {
             return Err(if status.is_error() {
                 status
@@ -241,11 +261,40 @@ impl File {
             });
         }
 
-        // Second call: fill the correctly-sized buffer.
         let mut buf = vec![0u8; size];
 
-        unsafe { (self.get_info)(self, &FileInfo::GUID, &mut size, buf.as_mut_ptr().cast()) }
-            .into_result()
-            .map(|_| buf)
+        unsafe {
+            (self.get_info)(
+                self,
+                &<FileInfoHeader as HasGuid>::GUID,
+                &mut size,
+                buf.as_mut_ptr().cast(),
+            )
+        }
+        .into_result()?;
+
+        if size < FILE_INFO_HEADER_SIZE {
+            return Err(Status::DEVICE_ERROR);
+        }
+
+        let header = unsafe { buf.as_ptr().cast::<FileInfoHeader>().read_unaligned() };
+
+        let file_name_bytes = size - FILE_INFO_HEADER_SIZE;
+        if file_name_bytes < 2 || !file_name_bytes.is_multiple_of(2) {
+            return Err(Status::DEVICE_ERROR);
+        }
+
+        let file_name_slice = unsafe {
+            core::slice::from_raw_parts(
+                buf.as_ptr().add(FILE_INFO_HEADER_SIZE) as *const u16,
+                file_name_bytes / 2,
+            )
+        };
+
+        let file_name = WStr::from_slice(file_name_slice)
+            .ok_or(Status::DEVICE_ERROR)?
+            .into();
+
+        Ok(FileInfo { header, file_name })
     }
 }

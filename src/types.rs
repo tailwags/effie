@@ -21,6 +21,7 @@ impl Handle {
 #[repr(transparent)]
 pub struct Event(*mut c_void);
 
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct Time {
     year: u16,
@@ -34,4 +35,42 @@ pub struct Time {
     time_zone: i16,
     daylight: u8,
     pad2: u8,
+}
+
+impl Time {
+    pub const fn year(&self) -> u16 {
+        self.year
+    }
+
+    pub const fn month(&self) -> u8 {
+        self.month
+    }
+
+    pub const fn day(&self) -> u8 {
+        self.day
+    }
+
+    pub const fn hour(&self) -> u8 {
+        self.hour
+    }
+
+    pub const fn minute(&self) -> u8 {
+        self.minute
+    }
+
+    pub const fn second(&self) -> u8 {
+        self.second
+    }
+
+    pub const fn nanosecond(&self) -> u32 {
+        self.nanosecond
+    }
+
+    pub const fn time_zone(&self) -> i16 {
+        self.time_zone
+    }
+
+    pub const fn daylight(&self) -> u8 {
+        self.daylight
+    }
 }

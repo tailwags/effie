@@ -30,6 +30,6 @@ impl SimpleFilesystem {
 
         status.into_result()?;
 
-        Ok(FileHandle(unsafe { volume.assume_init() }))
+        FileHandle::new(unsafe { volume.assume_init() })
     }
 }
