@@ -17,6 +17,7 @@ impl Handle {
     }
 }
 
+#[derive(Clone, Copy)]
 #[repr(transparent)]
 pub struct Event(*mut c_void);
 
