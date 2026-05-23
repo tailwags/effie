@@ -13,7 +13,7 @@ pub struct SimpleFilesystem {
 
 impl HasGuid for SimpleFilesystem {
     const GUID: Guid = Guid::new(
-        0x0964e5b2_u32.to_ne_bytes(),
+        0x0964e5b22_u32.to_ne_bytes(),
         0x6459_u16.to_ne_bytes(),
         0x11d2_u16.to_ne_bytes(),
         0x8e,
