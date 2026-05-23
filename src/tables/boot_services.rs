@@ -1,13 +1,15 @@
-#![allow(unused)] // FIXME: remove this in the future
-
 use core::{ffi::c_void, mem::MaybeUninit, ptr::null_mut};
 
-use crate::{Guid, Handle, Protocol, Result, Status, protocols::DevicePath, tables::TableHeader};
+use alloc::vec::Vec;
+
+use crate::{
+    Event, Guid, Handle, HasProtocol, Protocol, Result, Status, protocols::DevicePath,
+    tables::TableHeader,
+};
 
 use super::Signature;
 
 // FIXME: use wrapper structs for ty
-// FIXME: Make sure the pointers have the correct mutability
 #[repr(C)]
 pub struct BootServices {
     hdr: TableHeader,
@@ -21,7 +23,7 @@ pub struct BootServices {
     ) -> Status,
     free_pages: unsafe extern "efiapi" fn(memory: PhysicalAddress, pages: usize) -> Status,
     get_memory_map: unsafe extern "efiapi" fn(
-        memory_map_size: usize,
+        memory_map_size: *mut usize,
         memory_map: *mut MemoryDescriptor,
         map_key: *mut usize,
         descriptor_size: *mut usize,
@@ -32,7 +34,7 @@ pub struct BootServices {
         size: usize,
         buffer: *mut *mut c_void,
     ) -> Status,
-    free_pool: unsafe extern "efiapi" fn(buffer: *mut c_void) -> Status,
+    free_pool: unsafe extern "efiapi" fn(buffer: *const c_void) -> Status,
     create_event: unsafe extern "efiapi" fn(
         ty: u32,
         notify_tpl: Tpl,
@@ -44,7 +46,7 @@ pub struct BootServices {
     set_timer: unsafe extern "efiapi" fn(efi_event: Event, ty: u32, trigger_time: u64) -> Status,
     wait_for_event: unsafe extern "efiapi" fn(
         number_of_events: usize,
-        event: *mut Event,
+        event: *const Event,
         index: *mut usize,
     ) -> Status,
     signal_event: unsafe extern "efiapi" fn(event: Event) -> Status,
@@ -53,68 +55,68 @@ pub struct BootServices {
     /// FIXME: implement EFI_INTERFACE_TYPE
     install_protocol_interface: unsafe extern "efiapi" fn(
         handle: *mut Handle,
-        protocol: *mut Guid,
+        protocol: *const Guid,
         interface_type: u32,
         interface: *const c_void,
     ) -> Status,
     reinstall_protocol_interface: unsafe extern "efiapi" fn(
         handle: Handle,
-        protocol: *mut Guid,
+        protocol: *const Guid,
         old_interface: *const c_void,
         new_interface: *const c_void,
     ) -> Status,
     uninstall_protocol_interface: unsafe extern "efiapi" fn(
         handle: Handle,
-        protocol: *mut Guid,
+        protocol: *const Guid,
         interface: *const c_void,
     ) -> Status,
     handle_protocol: unsafe extern "efiapi" fn(
         handle: Handle,
-        protocol: *mut Guid,
+        protocol: *const Guid,
         interface: *mut *mut c_void,
     ) -> Status,
     reserved: *mut c_void,
     register_protocol_notify: unsafe extern "efiapi" fn(
-        protocol: *mut Guid,
+        protocol: *const Guid,
         event: Event,
-        registration: *mut *mut c_void,
+        registration: *mut *const c_void,
     ) -> Status,
     locate_handle: unsafe extern "efiapi" fn(
         search_type: u32,
-        protocol: *mut Guid,
-        search_key: *mut c_void,
-        buffer_size: usize,
+        protocol: *const Guid,
+        search_key: *const c_void,
+        buffer_size: *mut usize,
         buffer: *mut Handle,
     ) -> Status,
     locate_device_path: unsafe extern "efiapi" fn(
-        protocol: *mut Guid,
-        device_path: *mut DevicePath,
+        protocol: *const Guid,
+        device_path: *mut *const DevicePath,
         device: *mut Handle,
     ) -> Status,
     install_configuration_table:
-        unsafe extern "efiapi" fn(guid: *mut Guid, table: *mut c_void) -> Status,
+        unsafe extern "efiapi" fn(guid: *const Guid, table: *const c_void) -> Status,
     load_image: unsafe extern "efiapi" fn(
         boot_policy: bool,
         parent_image_handle: Handle,
         device_path: *const DevicePath,
-        source_buffer: *mut c_void,
+        source_buffer: *const c_void,
         source_size: usize,
         image_handle: *mut Handle,
     ) -> Status,
     start_image: unsafe extern "efiapi" fn(
         image_handle: Handle,
         exit_data_size: *mut usize,
-        exit_data: *mut *mut u16,
+        exit_data: *mut *const u16,
     ) -> Status,
     exit: unsafe extern "efiapi" fn(
         image_handle: Handle,
         exit_status: Status,
         exit_data_size: usize,
-        exit_data: *mut u16,
-    ) -> Status,
+        exit_data: *const u16,
+    ) -> !,
     unload_image: unsafe extern "efiapi" fn(image_handle: Handle) -> Status,
     exit_boot_services: unsafe extern "efiapi" fn(image_handle: Handle, map_key: usize) -> Status,
-    get_next_monotic_count: unsafe extern "efiapi" fn(count: *mut u64) -> Status,
+    get_next_monotonic_count: unsafe extern "efiapi" fn(count: *mut u64) -> Status,
     stall: unsafe extern "efiapi" fn(microseconds: usize) -> Status,
     set_watchdog_timer: unsafe extern "efiapi" fn(
         timeout: usize,
@@ -124,7 +126,7 @@ pub struct BootServices {
     ) -> Status,
     connect_controller: unsafe extern "efiapi" fn(
         controller_handle: Handle,
-        driver_image_handle: *mut Handle,
+        driver_image_handle: *const Handle,
         remaining_device_path: *const DevicePath,
         recursive: bool,
     ) -> Status,
@@ -143,31 +145,31 @@ pub struct BootServices {
     ) -> Status,
     close_protocol: unsafe extern "efiapi" fn(
         handle: Handle,
-        protocol: *mut Guid,
+        protocol: *const Guid,
         agent_handle: Handle,
         controller_handle: Handle,
     ) -> Status,
     open_protocol_information: unsafe extern "efiapi" fn(
         handle: Handle,
-        protocol: *mut Guid,
-        entry_buffer: *mut *mut OpenProtocolInformationEntry,
+        protocol: *const Guid,
+        entry_buffer: *mut *const OpenProtocolInformationEntry,
         entry_count: *mut usize,
     ) -> Status,
     protocols_per_handle: unsafe extern "efiapi" fn(
         handle: Handle,
-        protocol_buffer: *mut *mut *mut Guid,
+        protocol_buffer: *mut *mut *const Guid,
         protocol_buffer_count: *mut usize,
     ) -> Status,
     locate_handle_buffer: unsafe extern "efiapi" fn(
         search_type: u32,
-        protocol: *mut Guid,
-        search_key: *mut c_void,
+        protocol: *const Guid,
+        search_key: *const c_void,
         no_handles: *mut usize,
         buffer: *mut *mut Handle,
     ) -> Status,
     locate_protocol: unsafe extern "efiapi" fn(
-        protocol: *mut Guid,
-        registration: *mut c_void,
+        protocol: *const Guid,
+        registration: *const c_void,
         interface: *mut *mut c_void,
     ) -> Status,
     install_multiple_protocol_interfaces:
@@ -175,17 +177,17 @@ pub struct BootServices {
     uninstall_multiple_protocol_interfaces:
         unsafe extern "efiapi" fn(handle: Handle, ...) -> Status,
     calculate_crc32:
-        unsafe extern "efiapi" fn(data: *mut c_void, data_size: usize, crc32: *mut u32) -> Status,
+        unsafe extern "efiapi" fn(data: *const c_void, data_size: usize, crc32: *mut u32) -> Status,
     copy_mem:
-        unsafe extern "efiapi" fn(destination: *mut c_void, source: *mut c_void, length: usize),
+        unsafe extern "efiapi" fn(destination: *mut c_void, source: *const c_void, length: usize),
 
     set_mem: unsafe extern "efiapi" fn(buffer: *mut c_void, size: usize, value: u8),
     create_event_ex: unsafe extern "efiapi" fn(
         ty: u32,
         notify_tpl: Tpl,
         notify_function: Option<EventNotify>,
-        notify_context: *mut c_void,
-        event_grou: *mut Guid,
+        notify_context: *const c_void,
+        event_group: *const Guid,
         event: *mut Event,
     ) -> Status,
 }
@@ -227,10 +229,10 @@ impl MemoryType {
 pub struct AllocateType(u32);
 
 impl AllocateType {
-    const ALLOCATE_ANY_PAGES: Self = Self(0);
-    const ALLOCATE_MAX_ADDRESS: Self = Self(1);
-    const ALLOCATE_ADDRESS: Self = Self(2);
-    const MAX_ALLOCATE_TYPE: Self = Self(3);
+    pub const ALLOCATE_ANY_PAGES: Self = Self(0);
+    pub const ALLOCATE_MAX_ADDRESS: Self = Self(1);
+    pub const ALLOCATE_ADDRESS: Self = Self(2);
+    pub const MAX_ALLOCATE_TYPE: Self = Self(3);
 }
 
 #[repr(transparent)]
@@ -242,38 +244,49 @@ impl From<u64> for PhysicalAddress {
     }
 }
 
+#[repr(transparent)]
 pub struct VirtualAddress(u64);
 
+#[repr(C)]
 pub struct MemoryDescriptor {
-    ty: u32,
-    physical_start: PhysicalAddress,
-    virtual_start: VirtualAddress,
-    number_of_pages: u64,
-    attribute: u64,
+    pub ty: u32,
+    pub physical_start: PhysicalAddress,
+    pub virtual_start: VirtualAddress,
+    pub number_of_pages: u64,
+    pub attribute: u64,
 }
 
-pub type Event = *mut c_void;
-pub type EventNotify = unsafe extern "efiapi" fn(event: Event, context: *mut c_void);
+pub struct MemoryMap {
+    /// Raw byte buffer filled by GetMemoryMap.
+    pub buffer: Vec<u8>,
+    /// Key required for ExitBootServices.
+    pub map_key: usize,
+    /// Actual per-descriptor stride in bytes; may exceed size_of::<MemoryDescriptor>().
+    pub descriptor_size: usize,
+    pub descriptor_version: u32,
+}
 
-// //EFI_TIMER_DELAY
-// //******************************************************
-// typedef enum {
-//     TimerCancel,
-//     TimerPeriodic,
-//     TimerRelative
-//     } EFI_TIMER_DELAY;
+impl MemoryMap {
+    pub fn iter(&self) -> impl Iterator<Item = &MemoryDescriptor> {
+        self.buffer
+            .chunks(self.descriptor_size)
+            .map(|chunk| unsafe { &*(chunk.as_ptr() as *const MemoryDescriptor) })
+    }
+}
+
+pub type EventNotify = unsafe extern "efiapi" fn(event: Event, context: *mut c_void);
 
 #[repr(transparent)]
 pub struct OpenProtocolAttributes(u32);
 
 impl OpenProtocolAttributes {
-    const BY_HANDLE_PROTOCOL: Self = Self(0x00000001);
-    const GET_PROTOCOL: Self = Self(0x00000002);
-    const TEST_PROTOCOL: Self = Self(0x00000004);
-    const BY_CHILD_CONTROLLER: Self = Self(0x00000008);
-    const BY_DRIVER: Self = Self(0x00000010);
-    const BY_DRIVER_EXCLUSIVE: Self = Self(Self::BY_DRIVER.0 | Self::EXCLUSIVE.0);
-    const EXCLUSIVE: Self = Self(0x00000020);
+    pub const BY_HANDLE_PROTOCOL: Self = Self(0x00000001);
+    pub const GET_PROTOCOL: Self = Self(0x00000002);
+    pub const TEST_PROTOCOL: Self = Self(0x00000004);
+    pub const BY_CHILD_CONTROLLER: Self = Self(0x00000008);
+    pub const BY_DRIVER: Self = Self(0x00000010);
+    pub const BY_DRIVER_EXCLUSIVE: Self = Self(Self::BY_DRIVER.0 | Self::EXCLUSIVE.0);
+    pub const EXCLUSIVE: Self = Self(0x00000020);
 }
 
 #[repr(C)]
@@ -293,14 +306,25 @@ impl BootServices {
     // TODO: consider using a newtype wrapper that frees on drop
     pub fn allocate_pool(&self, memory_type: MemoryType, size: usize) -> Result<*mut c_void> {
         let mut buffer = null_mut();
-        unsafe { (self.allocate_pool)(memory_type, size, &mut buffer) }.as_result_with(buffer)
+
+        unsafe { (self.allocate_pool)(memory_type, size, &mut buffer) }
+            .into_result()
+            .map(|_| buffer)
     }
 
     /// # Safety
     ///
     /// The caller must ensure the pointer was allocated by allocate_pool
-    pub unsafe fn free_pool(&self, buffer: *mut c_void) -> Result {
-        unsafe { (self.free_pool)(buffer) }.as_result()
+    pub unsafe fn free_pool(&self, buffer: *const c_void) -> Result {
+        unsafe { (self.free_pool)(buffer) }.into_result()
+    }
+
+    /// # Safety
+    ///
+    /// `memory` must be a physical address obtained from `allocate_any_pages` or
+    /// `allocate_pages_at_address`, and `pages` must match the count from that call.
+    pub unsafe fn free_pages(&self, memory: PhysicalAddress, pages: usize) -> Result {
+        unsafe { (self.free_pages)(memory, pages) }.into_result()
     }
 
     pub fn allocate_pages_at_address(
@@ -319,7 +343,7 @@ impl BootServices {
                 &mut memory,
             )
         }
-        .as_result()
+        .into_result()
     }
 
     pub fn allocate_any_pages(
@@ -337,11 +361,20 @@ impl BootServices {
                 &mut address,
             )
         }
-        .as_result_with(address)
+        .into_result()
+        .map(|_| address)
     }
 
-    pub fn open_protocol<P: Protocol>(&self, handle: &Handle, agent: &Handle) -> Result<&P> {
+    // The returned &mut P points to a firmware protocol object, not data inside
+    // BootServices. UEFI is single-threaded and open_protocol hands out exclusive
+    // logical ownership of the protocol interface.
+    pub fn open_protocol<P: HasProtocol>(
+        &self,
+        handle: &Handle,
+        agent: &Handle,
+    ) -> Result<Protocol<P>> {
         let mut protocol = MaybeUninit::<*mut P>::uninit();
+
         let status = unsafe {
             (self.open_protocol)(
                 *handle,
@@ -353,35 +386,69 @@ impl BootServices {
             )
         };
 
-        status.as_result_with(unsafe { &*protocol.assume_init() })
+        status.into_result()?;
+
+        Protocol::new(unsafe { protocol.assume_init() }, *handle, *agent)
     }
 
-    // #[allow(unused)]
-    // pub fn load_image(
-    //     &self,
-    //     boot_policy: bool,
-    //     parent_image_handle: &Handle,
-    //     buf: &[u8],
-    // ) -> Result<Handle> {
-    //     let mut image_handle = Handle::null();
+    pub fn locate_protocol<P: crate::HasProtocol>(&self) -> Result<Protocol<P>> {
+        let mut protocol = MaybeUninit::<*mut P>::uninit();
 
-    //     let device_path =
-    //         self.open_protocol::<DevicePath>(&parent_image_handle, &parent_image_handle)?;
+        let status =
+            unsafe { (self.locate_protocol)(&P::GUID, null_mut(), protocol.as_mut_ptr().cast()) };
 
-    //     unsafe {
-    //         (self.load_image)(
-    //             false,
-    //             *parent_image_handle,
-    //             device_path,
-    //             buf.as_ptr() as _,
-    //             buf.len(),
-    //             &mut image_handle,
-    //         )
-    //     }
-    //     .as_result_with(image_handle)
-    // }
+        status.into_result()?;
+
+        Protocol::new_unscoped(unsafe { protocol.assume_init() })
+    }
+
+    pub fn close_protocol<P: HasProtocol>(&self, handle: &Handle, agent: &Handle) -> Result {
+        unsafe { (self.close_protocol)(*handle, &P::GUID, *agent, Handle::null()) }.into_result()
+    }
 
     pub fn start_image(&self, image_handle: Handle) -> Result {
-        unsafe { (self.start_image)(image_handle, null_mut(), null_mut()) }.as_result()
+        unsafe { (self.start_image)(image_handle, null_mut(), null_mut()) }.into_result()
+    }
+
+    pub fn get_memory_map(&self) -> Result<MemoryMap> {
+        todo!(
+            "call get_memory_map raw fn with size=0 to get required size; \
+             allocate Vec<u8> of that size plus two descriptor_size worth of slack \
+             (allocating the Vec itself changes the map); call get_memory_map again \
+             to fill the buffer; return MemoryMap with buffer, map_key, descriptor_size, \
+             descriptor_version. Return Err if the status is not BUFFER_TOO_SMALL on the \
+             first probe call."
+        )
+    }
+
+    /// Exits boot services. After this call the global allocator is permanently dead.
+    ///
+    /// # Safety
+    ///
+    /// - `image_handle` must be the handle passed to `efi_main`.
+    /// - `map_key` must have been obtained from `get_memory_map` with no intervening
+    ///   boot-services calls (including allocations) between that call and this one.
+    ///   Any such call invalidates the key and this function will return
+    ///   `EFI_INVALID_PARAMETER`; retry the whole `get_memory_map` +
+    ///   `exit_boot_services` sequence in that case.
+    /// - On success, all boot services (including the global allocator) are permanently
+    ///   unavailable. The caller must not use any `BootServices` reference, `Box`, `Vec`,
+    ///   or other heap-backed type after a successful call.
+    pub unsafe fn exit_boot_services(&self, image_handle: Handle, map_key: usize) -> Result {
+        unsafe { (self.exit_boot_services)(image_handle, map_key) }.into_result()
+    }
+
+    /// Blocks until one of the events in `events` is signaled.
+    /// Returns the index of the first event that fired.
+    pub fn wait_for_event(&self, events: &[Event]) -> Result<usize> {
+        let mut index = 0usize;
+        let status = unsafe { (self.wait_for_event)(events.len(), events.as_ptr(), &mut index) };
+
+        status.into_result().map(|_| index)
+    }
+
+    /// Stalls execution for the given number of microseconds.
+    pub fn stall(&self, microseconds: usize) -> Result {
+        unsafe { (self.stall)(microseconds) }.into_result()
     }
 }

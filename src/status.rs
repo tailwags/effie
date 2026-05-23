@@ -58,16 +58,8 @@ impl Status {
         Self(value | mask)
     }
 
-    pub const fn as_result(self) -> Result {
+    pub const fn into_result(self) -> Result {
         if self.is_error() { Err(self) } else { Ok(()) }
-    }
-
-    pub fn as_result_with<T>(self, other: T) -> Result<T> {
-        if self.is_error() {
-            Err(self)
-        } else {
-            Ok(other)
-        }
     }
 
     pub fn is_success(self) -> bool {

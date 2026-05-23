@@ -1,7 +1,7 @@
 use core::ffi::c_void;
 
 use crate::{
-    Guid, Handle, WStr,
+    Guid, Handle, Protocol, Result, WStr,
     protocols::{SimpleTextInput, SimpleTextOutput},
     tables::{BootServices, RuntimeServices, TableHeader},
 };
@@ -20,19 +20,19 @@ pub struct SystemTable {
     /// The handle for the active console input device.
     console_in_handle: Handle,
     /// A pointer to the EFI_SIMPLE_TEXT_INPUT_PROTOCOL interface that is associated with ConsoleInHandle.
-    con_in: *const SimpleTextInput,
+    con_in: *mut SimpleTextInput,
     console_out_handle: Handle,
-    con_out: *const SimpleTextOutput,
+    con_out: *mut SimpleTextOutput,
     standard_error_handler: Handle,
-    std_err: *const SimpleTextOutput,
-    runtime_services: *const RuntimeServices,
-    pub(crate) boot_services: *const BootServices,
+    std_err: *mut SimpleTextOutput,
+    runtime_services: *mut RuntimeServices,
+    boot_services: *mut BootServices,
     number_of_table_entries: usize,
-    configuration_table: *const ConfigurationTable,
+    configuration_table: *mut ConfigurationTable,
 }
 
 #[repr(C)]
-struct ConfigurationTable {
+pub struct ConfigurationTable {
     vendor_guid: Guid,
     vendor_table: *mut c_void,
 }
@@ -50,12 +50,12 @@ impl SystemTable {
         unsafe { WStr::from_ptr(self.firmware_vendor) }
     }
 
-    pub fn con_in(&self) -> &SimpleTextInput {
-        unsafe { &*self.con_in }
+    pub fn con_in(&self) -> Result<Protocol<SimpleTextInput>> {
+        Protocol::new_unscoped(self.con_in)
     }
 
-    pub fn con_out(&self) -> &SimpleTextOutput {
-        unsafe { &*self.con_out }
+    pub fn con_out(&self) -> Result<Protocol<SimpleTextOutput>> {
+        Protocol::new_unscoped(self.con_out)
     }
 
     pub fn boot_services(&self) -> &BootServices {
@@ -72,5 +72,11 @@ impl SystemTable {
             "runtime services pointer is null"
         );
         unsafe { &*self.runtime_services }
+    }
+
+    pub fn configuration_tables(&self) -> &[ConfigurationTable] {
+        unsafe {
+            core::slice::from_raw_parts(self.configuration_table, self.number_of_table_entries)
+        }
     }
 }

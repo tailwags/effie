@@ -15,7 +15,7 @@ pub mod protocols;
 pub mod tables;
 
 pub use allocator::Allocator;
-pub use protocol::Protocol;
+pub use protocol::{HasProtocol, Protocol};
 pub use status::{Result, Status};
 pub use types::*;
 pub use wstr::{CharIndices, Chars, WStr, WString};
@@ -46,7 +46,10 @@ extern "efiapi" fn efi_main(image_handle: Handle, system_table: &'static SystemT
 
     unsafe {
         if let Err(status) = main() {
-            let _ = system_table.con_out().output_line(status.description());
+            if let Ok(mut con_out) = system_table.con_out() {
+                let _ = con_out.output_line(status.description());
+            }
+
             status
         } else {
             Status::SUCCESS

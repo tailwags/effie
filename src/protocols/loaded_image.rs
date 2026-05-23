@@ -1,7 +1,7 @@
 use core::ffi::c_void;
 
 use crate::{
-    Guid, Handle, Protocol, Status,
+    Guid, Handle, HasProtocol, Status,
     protocols::DevicePath,
     tables::{MemoryType, SystemTable},
 };
@@ -13,17 +13,17 @@ pub struct LoadedImage {
     system_table: *const SystemTable,
     device_handle: Handle,
     file_path: *const DevicePath,
-    reserved: *mut c_void,
+    reserved: *const c_void,
     load_option_size: u32,
-    load_options: *mut c_void,
-    image_base: *mut c_void,
+    load_options: *const c_void,
+    image_base: *const c_void,
     image_size: u64,
     image_code_type: MemoryType,
     image_data_type: MemoryType,
-    unload: unsafe extern "efiapi" fn(image_handle: Handle) -> Status,
+    unload: Option<unsafe extern "efiapi" fn(image_handle: Handle) -> Status>,
 }
 
-impl Protocol for LoadedImage {
+impl HasProtocol for LoadedImage {
     const GUID: Guid = Guid::new(
         0x5B1B31A1_u32.to_ne_bytes(),
         0x9562_u16.to_ne_bytes(),
@@ -39,7 +39,13 @@ impl LoadedImage {
         &self.device_handle
     }
 
-    pub fn device_path(&self) -> &DevicePath {
-        unsafe { &*self.file_path }
+    /// Returns the device path of the loaded image, or `None` if the image was
+    /// loaded from a buffer rather than a file
+    pub fn device_path(&self) -> Option<&DevicePath> {
+        if self.file_path.is_null() {
+            None
+        } else {
+            Some(unsafe { &*self.file_path })
+        }
     }
 }

@@ -1,4 +1,4 @@
-use crate::{Guid, Protocol, WStr};
+use crate::{Guid, HasProtocol, WStr};
 
 // FIXME: EFI_DEVICE_PATH_PROTOCOL
 #[repr(C)]
@@ -9,7 +9,7 @@ pub struct DevicePath {
     data: [u8; 0],
 }
 
-impl Protocol for DevicePath {
+impl HasProtocol for DevicePath {
     const GUID: Guid = Guid::new(
         0x09576e91_u32.to_ne_bytes(),
         0x6d3f_u16.to_ne_bytes(),
@@ -27,7 +27,20 @@ impl DevicePath {
 
     pub fn as_path_name(&self) -> Option<&WStr> {
         match (self.ty, self.sub_type) {
-            (4, 4) => Some(unsafe { WStr::from_ptr(self.data.as_ptr().cast()) }),
+            (4, 4) => {
+                // node header: type(1) + sub_type(1) + length(2) = 4 bytes; data follows.
+                let node_len = u16::from_le_bytes(self.length) as usize;
+                let max_chars = node_len.saturating_sub(4) / core::mem::size_of::<u16>();
+                let ptr = self.data.as_ptr().cast::<u16>();
+                // UEFI allocates device path nodes from pool with ≥8-byte alignment, so
+                // the 4-byte header guarantees `data` is at a u16-aligned offset.
+                // Use read_unaligned defensively to remain sound even if that assumption
+                // ever breaks.
+                let terminator =
+                    (0..max_chars).find(|&i| unsafe { ptr.add(i).read_unaligned() == 0 })?;
+                let len = terminator + 1; // include the null
+                Some(unsafe { WStr::from_slice_unchecked(core::slice::from_raw_parts(ptr, len)) })
+            }
             _ => None,
         }
     }
