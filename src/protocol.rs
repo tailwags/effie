@@ -6,9 +6,11 @@ use core::{
 pub use crate::Guid;
 use crate::{Handle, Result, Status};
 
-pub trait HasProtocol {
+pub trait HasGuid {
     const GUID: Guid;
 }
+
+pub trait HasProtocol: HasGuid {}
 
 pub struct Protocol<P: HasProtocol> {
     raw: NonNull<P>,

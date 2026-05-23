@@ -1,4 +1,4 @@
-use crate::{Guid, HasProtocol, Result, Status};
+use crate::{Guid, HasGuid, HasProtocol, Result, Status};
 
 #[repr(C)]
 pub struct GraphicsOutput {
@@ -79,7 +79,7 @@ pub struct PixelBitmask {
     pub reserved_mask: u32,
 }
 
-impl HasProtocol for GraphicsOutput {
+impl HasGuid for GraphicsOutput {
     const GUID: Guid = Guid::new(
         0x9042a9de_u32.to_ne_bytes(),
         0x23dc_u16.to_ne_bytes(),
@@ -89,6 +89,7 @@ impl HasProtocol for GraphicsOutput {
         [0x7a, 0xde, 0xd0, 0x80, 0x51, 0x6a],
     );
 }
+impl HasProtocol for GraphicsOutput {}
 
 impl GraphicsOutput {
     pub fn current_mode(&self) -> &GraphicsOutputMode {

@@ -1,7 +1,7 @@
 use core::mem::MaybeUninit;
 
 use crate::{
-    Guid, HasProtocol, Result, Status,
+    Guid, HasGuid, HasProtocol, Result, Status,
     protocols::{File, FileHandle},
 };
 
@@ -11,9 +11,9 @@ pub struct SimpleFilesystem {
     open_volume: unsafe extern "efiapi" fn(this: *mut Self, root: *mut *mut File) -> Status,
 }
 
-impl HasProtocol for SimpleFilesystem {
+impl HasGuid for SimpleFilesystem {
     const GUID: Guid = Guid::new(
-        0x0964e5b22_u32.to_ne_bytes(),
+        0x0964e5b2_u32.to_ne_bytes(),
         0x6459_u16.to_ne_bytes(),
         0x11d2_u16.to_ne_bytes(),
         0x8e,
@@ -21,6 +21,7 @@ impl HasProtocol for SimpleFilesystem {
         [0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b],
     );
 }
+impl HasProtocol for SimpleFilesystem {}
 
 impl SimpleFilesystem {
     pub fn open_volume(&mut self) -> Result<FileHandle> {

@@ -1,4 +1,4 @@
-use crate::{Guid, HasProtocol, WStr};
+use crate::{Guid, HasGuid, HasProtocol, WStr};
 
 // FIXME: EFI_DEVICE_PATH_PROTOCOL
 #[repr(C)]
@@ -9,7 +9,7 @@ pub struct DevicePath {
     data: [u8; 0],
 }
 
-impl HasProtocol for DevicePath {
+impl HasGuid for DevicePath {
     const GUID: Guid = Guid::new(
         0x09576e91_u32.to_ne_bytes(),
         0x6d3f_u16.to_ne_bytes(),
@@ -19,6 +19,7 @@ impl HasProtocol for DevicePath {
         [0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b],
     );
 }
+impl HasProtocol for DevicePath {}
 
 impl DevicePath {
     // pub const fn null() -> Self {

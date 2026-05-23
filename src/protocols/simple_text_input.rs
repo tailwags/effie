@@ -1,4 +1,4 @@
-use crate::{Event, Guid, HasProtocol, Result, Status};
+use crate::{Event, Guid, HasGuid, HasProtocol, Result, Status};
 
 #[repr(C)]
 pub struct SimpleTextInput {
@@ -41,7 +41,7 @@ impl InputKey {
     pub const SCAN_ESC: u16 = 0x17;
 }
 
-impl HasProtocol for SimpleTextInput {
+impl HasGuid for SimpleTextInput {
     const GUID: Guid = Guid::new(
         0x387477c1_u32.to_ne_bytes(),
         0x69c7_u16.to_ne_bytes(),
@@ -51,6 +51,7 @@ impl HasProtocol for SimpleTextInput {
         [0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b],
     );
 }
+impl HasProtocol for SimpleTextInput {}
 
 impl SimpleTextInput {
     pub fn reset(&mut self, extended_verification: bool) -> Result {

@@ -15,7 +15,7 @@ pub mod protocols;
 pub mod tables;
 
 pub use allocator::Allocator;
-pub use protocol::{HasProtocol, Protocol};
+pub use protocol::{HasGuid, HasProtocol, Protocol};
 pub use status::{Result, Status};
 pub use types::*;
 pub use wstr::{CharIndices, Chars, WStr, WString};

@@ -1,6 +1,6 @@
 use effie_macros::w_internal;
 
-use crate::{Guid, HasProtocol, Result, Status, WStr};
+use crate::{Guid, HasGuid, HasProtocol, Result, Status, WStr};
 
 #[repr(C)]
 pub struct SimpleTextOutput {
@@ -32,7 +32,7 @@ pub struct SimpleTextOutputMode {
     pub cursor_visible: bool,
 }
 
-impl HasProtocol for SimpleTextOutput {
+impl HasGuid for SimpleTextOutput {
     const GUID: Guid = Guid::new(
         0x387477c2_u32.to_ne_bytes(),
         0x69c7_u16.to_ne_bytes(),
@@ -42,6 +42,7 @@ impl HasProtocol for SimpleTextOutput {
         [0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b],
     );
 }
+impl HasProtocol for SimpleTextOutput {}
 
 impl SimpleTextOutput {
     pub fn reset(&mut self, extended_verification: bool) -> Result {

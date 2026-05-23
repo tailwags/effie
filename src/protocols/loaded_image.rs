@@ -1,7 +1,7 @@
 use core::ffi::c_void;
 
 use crate::{
-    Guid, Handle, HasProtocol, Status,
+    Guid, Handle, HasGuid, HasProtocol, Status,
     protocols::DevicePath,
     tables::{MemoryType, SystemTable},
 };
@@ -23,7 +23,7 @@ pub struct LoadedImage {
     unload: Option<unsafe extern "efiapi" fn(image_handle: Handle) -> Status>,
 }
 
-impl HasProtocol for LoadedImage {
+impl HasGuid for LoadedImage {
     const GUID: Guid = Guid::new(
         0x5B1B31A1_u32.to_ne_bytes(),
         0x9562_u16.to_ne_bytes(),
@@ -33,6 +33,7 @@ impl HasProtocol for LoadedImage {
         [0x00, 0xA0, 0xC9, 0x69, 0x72, 0x3B],
     );
 }
+impl HasProtocol for LoadedImage {}
 
 impl LoadedImage {
     pub fn device(&self) -> &Handle {
