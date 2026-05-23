@@ -15,7 +15,7 @@ const PAGE_SIZE: usize = 4096;
 pub struct Allocator;
 
 const fn page_alloc_eligible(layout: &Layout) -> bool {
-    layout.align() == PAGE_SIZE && layout.size() % PAGE_SIZE == 0
+    layout.align() == PAGE_SIZE && layout.size().is_multiple_of(PAGE_SIZE)
 }
 
 // AllocatePool guarantees 8-byte alignment. For align > 8, over-allocate by `align`
