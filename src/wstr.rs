@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 
 /// A null-terminated UTF-16 string slice.
 ///
-/// `WStr` is to [`WString`] as [`str`] is to [`String`]. The internal `[u16]`
+/// `WStr` is to [`WString`] as [`str`] is to [`alloc::string::String`]. The internal `[u16]`
 /// always ends with a single `0u16` null terminator, and never contains
 /// interior null code units.
 ///
@@ -20,6 +20,7 @@ use alloc::vec::Vec;
 /// on the raw code-unit sequence.
 #[repr(transparent)]
 pub struct WStr {
+    /// The underlying UTF-16 code units, always null-terminated.
     inner: [u16],
 }
 
@@ -39,7 +40,7 @@ impl WStr {
     ///
     /// The slice must end with exactly one `0u16` and must contain no interior
     /// null code units. UTF-16 well-formedness (surrogate pairing) is not
-    /// checked — see the type-level documentation.
+    /// checked; see the type-level documentation.
     pub fn from_slice(slice: &[u16]) -> Option<&Self> {
         match slice.split_last() {
             Some((&0, rest)) if !rest.contains(&0) => {
@@ -187,7 +188,7 @@ impl PartialOrd for WStr {
 /// Surrogate high values (`0xD800`–`0xDBFF`) are numerically less than
 /// `0xE000`, so a supplementary character like U+10000 (encoded
 /// `[0xD800, 0xDC00]`) sorts *before* U+E000 even though U+10000 > U+E000 by
-/// code point. For BMP-only strings — the vast majority of UEFI strings — this
+/// code point. For BMP-only strings (the vast majority of UEFI strings) this
 /// makes no practical difference.
 impl Ord for WStr {
     fn cmp(&self, other: &Self) -> core::cmp::Ordering {
@@ -237,6 +238,7 @@ impl core::fmt::Debug for WStr {
 /// Created by [`WStr::chars`]. Decodes UTF-16 surrogate pairs; unpaired
 /// surrogates yield [`char::REPLACEMENT_CHARACTER`].
 pub struct Chars<'a> {
+    /// Remaining code units to decode.
     slice: &'a [u16],
 }
 
@@ -281,7 +283,9 @@ impl core::iter::FusedIterator for Chars<'_> {}
 ///
 /// Created by [`WStr::char_indices`].
 pub struct CharIndices<'a> {
+    /// Remaining code units to decode.
     slice: &'a [u16],
+    /// Code-unit offset of the next character.
     offset: usize,
 }
 
@@ -327,7 +331,7 @@ impl core::iter::FusedIterator for CharIndices<'_> {}
 
 /// An owned, heap-allocated null-terminated UTF-16 string.
 ///
-/// `WString` is to [`WStr`] as [`String`] is to [`str`]. The internal
+/// `WString` is to [`WStr`] as [`alloc::string::String`] is to [`str`]. The internal
 /// `Vec<u16>` always ends with a `0u16` null terminator and never contains
 /// interior null code units.
 ///
@@ -339,6 +343,7 @@ impl core::iter::FusedIterator for CharIndices<'_> {}
 /// write!(s, "boot option {}", index).unwrap();
 /// ```
 pub struct WString {
+    /// Backing buffer: null-terminated UTF-16 code units.
     inner: Vec<u16>,
 }
 
@@ -724,7 +729,7 @@ impl PartialOrd<WString> for WStr {
 impl core::hash::Hash for WString {
     fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         // Delegate through WStr so that HashMap<WString> lookups with &WStr
-        // keys work — required by the Borrow<WStr> contract.
+        // keys work -- required by the Borrow<WStr> contract.
         (**self).hash(state);
     }
 }

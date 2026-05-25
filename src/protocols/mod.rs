@@ -1,3 +1,8 @@
+//! UEFI protocol implementations.
+//!
+//! Each module in this directory wraps a UEFI protocol interface, providing safe Rust
+//! methods over the raw `extern "efiapi"` function pointers.
+
 mod device_path;
 mod file;
 mod graphics_output;

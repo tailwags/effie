@@ -2,78 +2,141 @@ use effie_macros::w_internal;
 
 use crate::WStr;
 
+/// UEFI result type alias.
+///
+/// `Result<T, Status>` with `Status` as the default error type.
 pub type Result<T = (), E = Status> = core::result::Result<T, E>;
 
+/// UEFI status code.
+///
+/// Represents the return value of all UEFI firmware functions.
+///
+/// The high bit distinguishes error codes (set) from warning codes (clear).
+/// `SUCCESS` is zero.
+///
+/// UEFI specification §2.3.1: Status Codes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 pub struct Status(usize);
 
 impl Status {
+    /// The operation completed successfully.
     pub const SUCCESS: Self = Self(0);
 
+    /// The image failed to load.
     pub const LOAD_ERROR: Self = Self::error(1);
+    /// A parameter was incorrect.
     pub const INVALID_PARAMETER: Self = Self::error(2);
+    /// The operation is not supported.
     pub const UNSUPPORTED: Self = Self::error(3);
+    /// The buffer was not the proper size for the request.
     pub const BAD_BUFFER_SIZE: Self = Self::error(4);
+    /// The buffer is not large enough to hold the requested data.
     pub const BUFFER_TOO_SMALL: Self = Self::error(5);
+    /// There is no data pending upon return.
     pub const NOT_READY: Self = Self::error(6);
+    /// The physical device reported an error while attempting the operation.
     pub const DEVICE_ERROR: Self = Self::error(7);
+    /// The device cannot be written to.
     pub const WRITE_PROTECTED: Self = Self::error(8);
+    /// A resource has run out.
     pub const OUT_OF_RESOURCES: Self = Self::error(9);
+    /// An inconstancy was detected on the file system causing the operating to fail.
     pub const VOLUME_CORRUPTED: Self = Self::error(10);
+    /// There is no more space on the file system.
     pub const VOLUME_FULL: Self = Self::error(11);
+    /// The device does not contain any medium to perform the operation.
     pub const NO_MEDIA: Self = Self::error(12);
+    /// The medium in the device has changed since the last access.
     pub const MEDIA_CHANGED: Self = Self::error(13);
+    /// The item was not found.
     pub const NOT_FOUND: Self = Self::error(14);
+    /// Access was denied.
     pub const ACCESS_DENIED: Self = Self::error(15);
+    /// The server was not found or did not respond to the request.
     pub const NO_RESPONSE: Self = Self::error(16);
+    /// A mapping to a device does not exist.
     pub const NO_MAPPING: Self = Self::error(17);
+    /// The timeout time expired.
     pub const TIMEOUT: Self = Self::error(18);
+    /// The protocol has not been started.
     pub const NOT_STARTED: Self = Self::error(19);
+    /// The protocol has already been started.
     pub const ALREADY_STARTED: Self = Self::error(20);
+    /// The operation was aborted.
     pub const ABORTED: Self = Self::error(21);
+    /// An ICMP error occurred during the network operation.
     pub const ICMP_ERROR: Self = Self::error(22);
+    /// A TFTP error occurred during the network operation.
     pub const TFTP_ERROR: Self = Self::error(23);
+    /// A protocol error occurred during the network operation.
     pub const PROTOCOL_ERROR: Self = Self::error(24);
+    /// The function encountered an internal version that was incompatible with a version requested by the caller.
     pub const INCOMPATIBLE_VERSION: Self = Self::error(25);
+    /// The function was not performed due to a security violation.
     pub const SECURITY_VIOLATION: Self = Self::error(26);
+    /// A CRC error was detected.
     pub const CRC_ERROR: Self = Self::error(27);
+    /// Beginning or end of media was reached.
     pub const END_OF_MEDIA: Self = Self::error(28);
+    /// The end of the file was reached.
     pub const END_OF_FILE: Self = Self::error(31);
+    /// The language specified was invalid.
     pub const INVALID_LANGUAGE: Self = Self::error(32);
+    /// The security status of the data is unknown or compromised and the data must be updated or replaced to restore a valid security status.
     pub const COMPROMISED_DATA: Self = Self::error(33);
+    /// There is an address conflict address allocation
     pub const IP_ADDRESS_CONFLICT: Self = Self::error(34);
+    /// A HTTP error occurred during the network operation.
     pub const HTTP_ERROR: Self = Self::error(35);
 
+    /// The string contained one or more characters that the device could not render and were skipped.
     pub const WARN_UNKNOWN_GLYPH: Self = Self(1);
+    /// The handle was closed, but the file was not deleted.
     pub const WARN_DELETE_FAILURE: Self = Self(2);
+    /// The handle was closed, but the data to the file was not flushed properly.
     pub const WARN_WRITE_FAILURE: Self = Self(3);
+    /// The resulting buffer was too small, and the data was truncated to the buffer size.
     pub const WARN_BUFFER_TOO_SMALL: Self = Self(4);
+    /// The data has not been updated within the timeframe set by local policy for this type of data.
     pub const WARN_STALE_DATA: Self = Self(5);
+    /// The resulting buffer contains UEFI-compliant file system.
     pub const WARN_FILE_SYSTEM: Self = Self(6);
+    /// The operation will be processed across a system reset.
     pub const WARN_RESET_REQUIRED: Self = Self(7);
 
+    /// Constructs an error status code by setting the high bit of `value`.
     const fn error(value: usize) -> Self {
         let mask: usize = 1 << (core::mem::size_of::<usize>() * 8 - 1);
         Self(value | mask)
     }
 
+    /// Converts this status code into a [`Result`].
+    ///
+    /// Returns `Err(self)` if it is an error code, `Ok(())` otherwise.
     pub const fn into_result(self) -> Result {
         if self.is_error() { Err(self) } else { Ok(()) }
     }
 
+    /// Returns `true` if this status code is [`SUCCESS`](Status::SUCCESS).
     pub fn is_success(self) -> bool {
         matches!(self, Self::SUCCESS)
     }
 
+    /// Returns `true` if this is an error code (high bit set).
     pub const fn is_error(self) -> bool {
         self.0 & (1 << (usize::BITS - 1)) != 0
     }
 
+    /// Returns `true` if this is a warning (non-zero, high bit clear).
     pub const fn is_warning(self) -> bool {
         self.0 != 0 && !self.is_error()
     }
 
+    /// Returns a null-terminated Unicode string describing this status code.
+    ///
+    /// The string is suitable for display via
+    /// [`crate::protocols::SimpleTextOutput::output_string`].
     pub const fn description(&self) -> &WStr {
         match *self {
             Self::SUCCESS => w_internal!("The operation completed successfully."),
@@ -143,7 +206,9 @@ impl Status {
             Self::WARN_WRITE_FAILURE => w_internal!(
                 "The handle was closed, but the data to the file was not flushed properly."
             ),
-            // Self::BUFFER_TOO_SMALL => w_internal!("The resulting buffer was too small, and the data was truncated to the buffer size."),
+            Self::WARN_BUFFER_TOO_SMALL => w_internal!(
+                "The resulting buffer was too small, and the data was truncated to the buffer size."
+            ),
             Self::WARN_STALE_DATA => w_internal!(
                 "The data has not been updated within the timeframe set by local policy for this type of data."
             ),

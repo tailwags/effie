@@ -1,11 +1,16 @@
 use crate::{Guid, HasGuid, HasProtocol, WStr};
 
-// FIXME: EFI_DEVICE_PATH_PROTOCOL
+/// UEFI Device Path Protocol. A path to a device in the UEFI device hierarchy.
+/// (UEFI specification §10.2: EFI_DEVICE_PATH_PROTOCOL)
 #[repr(C)]
 pub struct DevicePath {
+    /// Device path node type.
     ty: u8,
+    /// Device path node sub-type.
     sub_type: u8,
+    /// Length of the node in bytes (little-endian).
     length: [u8; 2],
+    /// Device path node payload data.
     data: [u8; 0],
 }
 
@@ -22,10 +27,8 @@ impl HasGuid for DevicePath {
 impl HasProtocol for DevicePath {}
 
 impl DevicePath {
-    // pub const fn null() -> Self {
-    //     Self { inner: null_mut() }
-    // }
-
+    /// If this device path node represents a File Path Media Device Path (type 4, sub-type 4),
+    /// returns the file path name as a `WStr`. Returns `None` for other node types.
     pub fn as_path_name(&self) -> Option<&WStr> {
         match (self.ty, self.sub_type) {
             (4, 4) => {

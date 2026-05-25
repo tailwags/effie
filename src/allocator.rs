@@ -9,18 +9,35 @@ use crate::{
     tables::{BootServices, MemoryType, PhysicalAddress},
 };
 
+/// UEFI page size in bytes (4 KiB).
 const PAGE_SIZE: usize = 4096;
 
+/// UEFI-backed global allocator.
+///
+/// Implements [`GlobalAlloc`] using UEFI boot services:
+///
+/// * **Page allocations** (size and alignment are multiples of 4 KiB) go through
+///   [`AllocatePages`](crate::tables::BootServices::allocate_any_pages).
+/// * **Small allocations** (alignment ≤ 8) use
+///   [`AllocatePool`](crate::tables::BootServices::allocate_pool).
+/// * **Over-aligned allocations** (alignment > 8) over-allocate and slide to the
+///   correct alignment, storing the original pointer for `dealloc`.
+///
+/// The allocator is available only until
+/// [`ExitBootServices`](crate::tables::BootServices::exit_boot_services).
+/// After that point, all heap operations are unsound.
 #[repr(transparent)]
 pub struct Allocator;
 
+/// Returns `true` if `layout` describes a page-sized, page-aligned allocation
+/// that is eligible for `AllocatePages` rather than `AllocatePool`.
 const fn page_alloc_eligible(layout: &Layout) -> bool {
     layout.align() == PAGE_SIZE && layout.size().is_multiple_of(PAGE_SIZE)
 }
 
-// AllocatePool guarantees 8-byte alignment. For align > 8, over-allocate by `align`
-// bytes and slide to the first aligned address, storing the original pool pointer
-// in the word immediately before it so dealloc can free the right block.
+/// AllocatePool guarantees 8-byte alignment. For align > 8, over-allocate by `align`
+/// bytes and slide to the first aligned address, storing the original pool pointer
+/// in the word immediately before it so dealloc can free the right block.
 fn alloc_aligned(boot_services: &BootServices, size: usize, align: usize) -> *mut u8 {
     let raw: *mut u8 = match boot_services.allocate_pool(MemoryType::LOADER_DATA, size + align) {
         Ok(p) => p.cast(),

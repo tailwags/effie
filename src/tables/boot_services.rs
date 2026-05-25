@@ -10,8 +10,12 @@ use crate::{
 use super::Signature;
 
 // FIXME: use wrapper structs for ty
+/// UEFI Boot Services Table. Contains function pointers for boot-time memory allocation,
+/// protocol management, image loading, and event services. (UEFI specification §4.4.1:
+/// EFI_BOOT_SERVICES)
 #[repr(C)]
 pub struct BootServices {
+    /// Standard EFI table header. Signature must be [`Signature::BOOT_SERVICES`].
     hdr: TableHeader,
     raise_tpl: unsafe extern "efiapi" fn(new_tpl: Tpl) -> Tpl,
     restore_tpl: unsafe extern "efiapi" fn(old_tpl: Tpl),
@@ -42,7 +46,7 @@ pub struct BootServices {
         notify_context: *mut c_void,
         event: *mut Event,
     ) -> Status,
-    /// FIXME: implement EFI_TIMER_DELAY
+    // FIXME: implement EFI_TIMER_DELAY
     set_timer: unsafe extern "efiapi" fn(efi_event: Event, ty: u32, trigger_time: u64) -> Status,
     wait_for_event: unsafe extern "efiapi" fn(
         number_of_events: usize,
@@ -52,7 +56,7 @@ pub struct BootServices {
     signal_event: unsafe extern "efiapi" fn(event: Event) -> Status,
     close_event: unsafe extern "efiapi" fn(event: Event) -> Status,
     check_event: unsafe extern "efiapi" fn(event: Event) -> Status,
-    /// FIXME: implement EFI_INTERFACE_TYPE
+    // FIXME: implement EFI_INTERFACE_TYPE
     install_protocol_interface: unsafe extern "efiapi" fn(
         handle: *mut Handle,
         protocol: *const Guid,
@@ -75,6 +79,7 @@ pub struct BootServices {
         protocol: *const Guid,
         interface: *mut *mut c_void,
     ) -> Status,
+    /// Reserved pointer; must be null.
     reserved: *mut c_void,
     register_protocol_notify: unsafe extern "efiapi" fn(
         protocol: *const Guid,
@@ -192,49 +197,79 @@ pub struct BootServices {
     ) -> Status,
 }
 
+/// UEFI Task Priority Level. Values used with `RaiseTPL` and `RestoreTPL` to synchronize event
+/// notification. (UEFI specification §4.4)
 #[repr(transparent)]
 pub struct Tpl(usize);
 
 impl Tpl {
+    /// Application task priority level.
     pub const APPLICATION: Self = Self(4);
+    /// Callback task priority level.
     pub const CALLBACK: Self = Self(8);
+    /// Notify task priority level.
     pub const NOTIFY: Self = Self(16);
+    /// High-level task priority level.
     pub const HIGH_LEVEL: Self = Self(31);
 }
 
+/// UEFI memory type. Identifies the type of memory region or allocation. (UEFI specification §7.2)
 #[repr(transparent)]
 pub struct MemoryType(u32);
 
 impl MemoryType {
+    /// Reserved memory type.
     pub const RESERVED_MEMORY_TYPE: Self = Self(0);
+    /// Loader code memory.
     pub const LOADER_CODE: Self = Self(1);
+    /// Loader data memory.
     pub const LOADER_DATA: Self = Self(2);
+    /// Boot services code memory.
     pub const BOOT_SERVICES_CODE: Self = Self(3);
+    /// Boot services data memory.
     pub const BOOT_SERVICES_DATA: Self = Self(4);
+    /// Runtime services code memory.
     pub const RUNTIME_SERVICES_CODE: Self = Self(5);
+    /// Runtime services data memory.
     pub const RUNTIME_SERVICES_DATA: Self = Self(6);
+    /// Conventional (free) memory.
     pub const CONVENTIONAL_MEMORY: Self = Self(7);
+    /// Unusable memory.
     pub const UNUSABLE_MEMORY: Self = Self(8);
+    /// ACPI reclaim memory.
     pub const ACPIRECLAIM_MEMORY: Self = Self(9);
+    /// ACPI NVS memory.
     pub const ACPIMEMORY_NVS: Self = Self(10);
+    /// Memory-mapped I/O.
     pub const MEMORY_MAPPED_IO: Self = Self(11);
+    /// Memory-mapped I/O port space.
     pub const MEMORY_MAPPED_IOPORT_SPACE: Self = Self(12);
+    /// PAL code memory.
     pub const PAL_CODE: Self = Self(13);
+    /// Persistent memory.
     pub const PERSISTENT_MEMORY: Self = Self(14);
+    /// Unaccepted memory type.
     pub const UNACCEPTED_MEMORY_TYPE: Self = Self(15);
+    /// Maximum memory type value.
     pub const MAX_MEMORY_TYPE: Self = Self(16);
 }
 
+/// UEFI allocation type. Determines how `AllocatePages` selects memory. (UEFI specification §7.2)
 #[repr(transparent)]
 pub struct AllocateType(u32);
 
 impl AllocateType {
+    /// Allocate any available range of pages.
     pub const ALLOCATE_ANY_PAGES: Self = Self(0);
+    /// Allocate pages at the highest available physical address below 4 GB.
     pub const ALLOCATE_MAX_ADDRESS: Self = Self(1);
+    /// Allocate pages at a specific physical address.
     pub const ALLOCATE_ADDRESS: Self = Self(2);
+    /// Maximum allocation type value.
     pub const MAX_ALLOCATE_TYPE: Self = Self(3);
 }
 
+/// UEFI physical address. A 64-bit physical memory address.
 #[repr(transparent)]
 pub struct PhysicalAddress(pub u64);
 
@@ -244,29 +279,42 @@ impl From<u64> for PhysicalAddress {
     }
 }
 
+/// UEFI virtual address. A 64-bit virtual memory address.
 #[repr(transparent)]
 pub struct VirtualAddress(u64);
 
+/// UEFI memory descriptor. Describes a contiguous block of physical memory.
+/// (UEFI specification §7.2: EFI_MEMORY_DESCRIPTOR)
 #[repr(C)]
 pub struct MemoryDescriptor {
+    /// The type of memory described by this descriptor.
     pub ty: u32,
+    /// The physical address of the memory region.
     pub physical_start: PhysicalAddress,
+    /// The virtual address of the memory region.
     pub virtual_start: VirtualAddress,
+    /// The number of contiguous 4 KiB pages in the region.
     pub number_of_pages: u64,
+    /// The bitmask of attributes for this memory region.
     pub attribute: u64,
 }
 
+/// The UEFI memory map. Returned by `GetMemoryMap` to describe the current boot services
+/// memory map.
 pub struct MemoryMap {
     /// Raw byte buffer filled by GetMemoryMap.
     pub buffer: Vec<u8>,
     /// Key required for ExitBootServices.
     pub map_key: usize,
-    /// Actual per-descriptor stride in bytes; may exceed size_of::<MemoryDescriptor>().
+    /// Actual per-descriptor stride in bytes; may exceed `size_of::<MemoryDescriptor>()`.
     pub descriptor_size: usize,
+    /// The version of the descriptor format.
     pub descriptor_version: u32,
 }
 
 impl MemoryMap {
+    /// Iterates over [`MemoryDescriptor`] entries in the memory map. Uses `descriptor_size`
+    /// as the stride, which may exceed `size_of::<MemoryDescriptor>()`.
     pub fn iter(&self) -> impl Iterator<Item = &MemoryDescriptor> {
         self.buffer
             .chunks(self.descriptor_size)
@@ -274,34 +322,52 @@ impl MemoryMap {
     }
 }
 
+/// UEFI event notification function. Called when an event is signaled. (UEFI specification §7.1.1)
 pub type EventNotify = unsafe extern "efiapi" fn(event: Event, context: *mut c_void);
 
+/// Attributes for `OpenProtocol` that specify how a protocol interface is being opened.
+/// (UEFI specification §7.3.9)
 #[repr(transparent)]
 pub struct OpenProtocolAttributes(u32);
 
 impl OpenProtocolAttributes {
+    /// Open a protocol by handle.
     pub const BY_HANDLE_PROTOCOL: Self = Self(0x00000001);
+    /// Get a protocol interface.
     pub const GET_PROTOCOL: Self = Self(0x00000002);
+    /// Test for a protocol without opening it.
     pub const TEST_PROTOCOL: Self = Self(0x00000004);
+    /// Open by child controller.
     pub const BY_CHILD_CONTROLLER: Self = Self(0x00000008);
+    /// Open by driver.
     pub const BY_DRIVER: Self = Self(0x00000010);
+    /// Open by driver with exclusive access.
     pub const BY_DRIVER_EXCLUSIVE: Self = Self(Self::BY_DRIVER.0 | Self::EXCLUSIVE.0);
+    /// Open with exclusive access.
     pub const EXCLUSIVE: Self = Self(0x00000020);
 }
 
+/// Information about how a protocol interface has been opened. (UEFI specification §7.3.11)
 #[repr(C)]
 pub struct OpenProtocolInformationEntry {
+    /// The handle of the agent that opened the protocol.
     pub agent_handle: Handle,
+    /// The handle of the controller that is using the protocol.
     pub controller_handle: Handle,
+    /// The attributes with which the protocol was opened.
     pub attributes: OpenProtocolAttributes,
+    /// The number of times the protocol has been opened.
     pub open_count: u32,
 }
 
 impl BootServices {
+    /// Returns the table signature. Must match [`Signature::BOOT_SERVICES`].
     pub fn signature(&self) -> Signature {
         self.hdr.signature
     }
 
+    /// Allocates a pool of a particular type. Returns a pointer to the allocated buffer.
+    /// (UEFI specification §7.2.4: EFI_BOOT_SERVICES.AllocatePool())
     // FIXME: check for errors
     // TODO: consider using a newtype wrapper that frees on drop
     pub fn allocate_pool(&self, memory_type: MemoryType, size: usize) -> Result<*mut c_void> {
@@ -312,6 +378,8 @@ impl BootServices {
             .map(|_| buffer)
     }
 
+    /// Frees allocated pool. (UEFI specification §7.2.5: EFI_BOOT_SERVICES.FreePool())
+    ///
     /// # Safety
     ///
     /// The caller must ensure the pointer was allocated by allocate_pool
@@ -319,6 +387,8 @@ impl BootServices {
         unsafe { (self.free_pool)(buffer) }.into_result()
     }
 
+    /// Frees allocated pages. (UEFI specification §7.2.2: EFI_BOOT_SERVICES.FreePages())
+    ///
     /// # Safety
     ///
     /// `memory` must be a physical address obtained from `allocate_any_pages` or
@@ -327,6 +397,8 @@ impl BootServices {
         unsafe { (self.free_pages)(memory, pages) }.into_result()
     }
 
+    /// Allocates pages at a specific physical address.
+    /// (UEFI specification §7.2.1: EFI_BOOT_SERVICES.AllocatePages() with AllocateAddress.)
     pub fn allocate_pages_at_address(
         &self,
         memory_type: MemoryType,
@@ -346,6 +418,8 @@ impl BootServices {
         .into_result()
     }
 
+    /// Allocates any available range of pages. Returns the physical address.
+    /// (UEFI specification §7.2.1: EFI_BOOT_SERVICES.AllocatePages() with AllocateAnyPages.)
     pub fn allocate_any_pages(
         &self,
         memory_type: MemoryType,
@@ -365,6 +439,8 @@ impl BootServices {
         .map(|_| address)
     }
 
+    /// Opens a protocol interface on a handle. Returns a [`Protocol<P>`] that automatically
+    /// closes on drop. (UEFI specification §7.3.9: EFI_BOOT_SERVICES.OpenProtocol())
     // The returned &mut P points to a firmware protocol object, not data inside
     // BootServices. UEFI is single-threaded and open_protocol hands out exclusive
     // logical ownership of the protocol interface.
@@ -391,6 +467,8 @@ impl BootServices {
         Protocol::new(unsafe { protocol.assume_init() }, *handle, *agent)
     }
 
+    /// Finds the first handle that supports a protocol and returns its interface.
+    /// (UEFI specification §7.3.16: EFI_BOOT_SERVICES.LocateProtocol())
     pub fn locate_protocol<P: crate::HasProtocol>(&self) -> Result<Protocol<P>> {
         let mut protocol = MaybeUninit::<*mut P>::uninit();
 
@@ -402,14 +480,20 @@ impl BootServices {
         Protocol::new_unscoped(unsafe { protocol.assume_init() })
     }
 
+    /// Closes a protocol interface previously opened via `open_protocol`.
+    /// (UEFI specification §7.3.10: EFI_BOOT_SERVICES.CloseProtocol())
     pub fn close_protocol<P: HasProtocol>(&self, handle: &Handle, agent: &Handle) -> Result {
         unsafe { (self.close_protocol)(*handle, &P::GUID, *agent, Handle::null()) }.into_result()
     }
 
+    /// Transfers control to a loaded image. (UEFI specification §7.4.2:
+    /// EFI_BOOT_SERVICES.StartImage())
     pub fn start_image(&self, image_handle: Handle) -> Result {
         unsafe { (self.start_image)(image_handle, null_mut(), null_mut()) }.into_result()
     }
 
+    /// Returns the current boot services memory map and memory map key.
+    /// (UEFI specification §7.2.3: EFI_BOOT_SERVICES.GetMemoryMap())
     pub fn get_memory_map(&self) -> Result<MemoryMap> {
         todo!(
             "call get_memory_map raw fn with size=0 to get required size; \
@@ -421,7 +505,8 @@ impl BootServices {
         )
     }
 
-    /// Exits boot services. After this call the global allocator is permanently dead.
+    /// Terminates all boot services. After this call, only runtime services and the memory map
+    /// are available. (UEFI specification §7.4.6: EFI_BOOT_SERVICES.ExitBootServices())
     ///
     /// # Safety
     ///
@@ -438,8 +523,8 @@ impl BootServices {
         unsafe { (self.exit_boot_services)(image_handle, map_key) }.into_result()
     }
 
-    /// Blocks until one of the events in `events` is signaled.
-    /// Returns the index of the first event that fired.
+    /// Blocks until one of the specified events is signaled. Returns the index of the signaled
+    /// event. (UEFI specification §7.1.5: EFI_BOOT_SERVICES.WaitForEvent())
     pub fn wait_for_event(&self, events: &[Event]) -> Result<usize> {
         let mut index = 0usize;
         let status = unsafe { (self.wait_for_event)(events.len(), events.as_ptr(), &mut index) };
@@ -447,7 +532,8 @@ impl BootServices {
         status.into_result().map(|_| index)
     }
 
-    /// Stalls execution for the given number of microseconds.
+    /// Stalls execution for the specified number of microseconds.
+    /// (UEFI specification §7.5.2: EFI_BOOT_SERVICES.Stall())
     pub fn stall(&self, microseconds: usize) -> Result {
         unsafe { (self.stall)(microseconds) }.into_result()
     }
