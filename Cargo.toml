@@ -6,10 +6,10 @@ name = "effie"
 version = "0.0.1"
 edition = "2024"
 license = "Apache-2.0"
-authors = ["Matilde Morrone <contact@morrone.dev>"]
+authors = ["Matilde Morrone <contact@matilde.pet>"]
 description = "Idiomatic api to uefi"
 documentation = "https://docs.rs/effie"
-repository = "https://github.com/bread-bootloader/bread"
+repository = "https://github.com/tailwags/effie"
 include = ["src/**/*.rs", "README.md", "LICENSE"]
 readme = "README.md"
 
