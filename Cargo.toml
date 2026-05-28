@@ -13,7 +13,11 @@ repository = "https://github.com/tailwags/effie"
 include = ["src/**/*.rs", "README.md", "LICENSE"]
 readme = "README.md"
 
+[features]
+serde = ["dep:serde_core"]
+
 [dependencies]
 bitflags = "2.11.1"
 itoa = "1.0.18"
 effie-macros = { version = "0.0.1", path = "macros" }
+serde_core = { version = "1.0.228", default-features = false, optional = true }

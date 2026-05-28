@@ -121,16 +121,14 @@ effie is developed alongside [bread](https://github.com/bread-bootloader/bread),
 an experimental UEFI bootloader for Linux. Coverage is driven by what bread
 needs. Contributions adding protocols or services are welcome.
 
-## Third-party code
-
-The `guid` module (`src/guid/`) is vendored from the
-[`uguid`](https://github.com/google/gpt-disk-rs/tree/main/uguid) crate, part of
-[gpt-disk-rs](https://github.com/google/gpt-disk-rs) by Google LLC. It is used
-here under the Apache-2.0 license. Copyright 2022 Google LLC. The original
-copyright notices are preserved in the source files.
-
 ## License
 
 This project is licensed under the
 [APACHE-2.0 LICENSE](http://www.apache.org/licenses/LICENSE-2.0). You can find
 more info in the [LICENSE](LICENSE) file.
+
+`src/guid.rs` is adapted from the
+[`uguid`](https://github.com/google/gpt-disk-rs/tree/main/uguid) crate, part of
+[gpt-disk-rs](https://github.com/google/gpt-disk-rs) by Google LLC. It is used
+here under the Apache-2.0 license. Copyright 2022 Google LLC. The original
+copyright notices are preserved in the source files.
