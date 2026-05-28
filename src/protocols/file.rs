@@ -7,6 +7,8 @@ use core::{
 
 use alloc::vec;
 
+use bitflags::bitflags;
+
 use crate::{Guid, HasGuid, Result, Status, Time, WStr, WString};
 
 /// UEFI File Protocol. Provides file I/O operations on a UEFI-compliant file system.
@@ -128,24 +130,18 @@ impl DerefMut for FileHandle {
     }
 }
 
-/// UEFI file open mode. Specifies the access mode for opening a file.
-/// (UEFI specification §13.5.2)
-#[repr(transparent)]
-pub struct FileMode(u64);
-
-impl FileMode {
-    /// Opens the file for reading.
-    pub const READ: Self = Self(1);
-    /// Opens the file for writing.
-    pub const WRITE: Self = Self(2);
-    /// Creates a new file if it does not exist. Must be combined with `READ` and/or `WRITE`.
-    pub const CREATE: Self = Self(0x8000000000000000);
-}
-
-impl core::ops::BitOr for FileMode {
-    type Output = Self;
-    fn bitor(self, rhs: Self) -> Self {
-        Self(self.0 | rhs.0)
+bitflags! {
+    /// UEFI file open mode. Specifies the access mode for opening a file.
+    /// (UEFI specification §13.5.2)
+    #[repr(transparent)]
+    #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+    pub struct FileMode: u64 {
+        /// Opens the file for reading.
+        const READ   = 0x0000000000000001;
+        /// Opens the file for writing.
+        const WRITE  = 0x0000000000000002;
+        /// Creates a new file if it does not exist. Must be combined with `READ` and/or `WRITE`.
+        const CREATE = 0x8000000000000000;
     }
 }
 

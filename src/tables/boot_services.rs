@@ -2,6 +2,8 @@ use core::{ffi::c_void, mem::MaybeUninit, ptr::null_mut};
 
 use alloc::vec::Vec;
 
+use bitflags::bitflags;
+
 use crate::{
     Event, Guid, Handle, HasProtocol, Protocol, Result, Status, protocols::DevicePath,
     tables::TableHeader,
@@ -325,26 +327,25 @@ impl MemoryMap {
 /// UEFI event notification function. Called when an event is signaled. (UEFI specification §7.1.1)
 pub type EventNotify = unsafe extern "efiapi" fn(event: Event, context: *mut c_void);
 
-/// Attributes for `OpenProtocol` that specify how a protocol interface is being opened.
-/// (UEFI specification §7.3.9)
-#[repr(transparent)]
-pub struct OpenProtocolAttributes(u32);
-
-impl OpenProtocolAttributes {
-    /// Open a protocol by handle.
-    pub const BY_HANDLE_PROTOCOL: Self = Self(0x00000001);
-    /// Get a protocol interface.
-    pub const GET_PROTOCOL: Self = Self(0x00000002);
-    /// Test for a protocol without opening it.
-    pub const TEST_PROTOCOL: Self = Self(0x00000004);
-    /// Open by child controller.
-    pub const BY_CHILD_CONTROLLER: Self = Self(0x00000008);
-    /// Open by driver.
-    pub const BY_DRIVER: Self = Self(0x00000010);
-    /// Open by driver with exclusive access.
-    pub const BY_DRIVER_EXCLUSIVE: Self = Self(Self::BY_DRIVER.0 | Self::EXCLUSIVE.0);
-    /// Open with exclusive access.
-    pub const EXCLUSIVE: Self = Self(0x00000020);
+bitflags! {
+    /// Attributes for `OpenProtocol` that specify how a protocol interface is being opened.
+    /// (UEFI specification §7.3.9)
+    #[repr(transparent)]
+    #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+    pub struct OpenProtocolAttributes: u32 {
+        /// Open a protocol by handle.
+        const BY_HANDLE_PROTOCOL  = 0x00000001;
+        /// Get a protocol interface.
+        const GET_PROTOCOL        = 0x00000002;
+        /// Test for a protocol without opening it.
+        const TEST_PROTOCOL       = 0x00000004;
+        /// Open by child controller.
+        const BY_CHILD_CONTROLLER = 0x00000008;
+        /// Open by driver.
+        const BY_DRIVER           = 0x00000010;
+        /// Open with exclusive access.
+        const EXCLUSIVE           = 0x00000020;
+    }
 }
 
 /// Information about how a protocol interface has been opened. (UEFI specification §7.3.11)
