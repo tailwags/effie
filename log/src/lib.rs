@@ -21,8 +21,7 @@
 //! # Shutdown
 //!
 //! Call [`shutdown`] **before** `ExitBootServices`. After that call all log
-//! macro invocations become silent no-ops — the cached protocol pointer is
-//! cleared and will not be dereferenced.
+//! macro invocations are silent no-ops.
 
 #![no_std]
 #![deny(missing_docs)]
@@ -33,33 +32,33 @@ use core::sync::atomic::{AtomicPtr, Ordering};
 use effie::protocols::SerialIo;
 use log::{LevelFilter, Log, Metadata, Record, SetLoggerError};
 
-// ── Global state ──────────────────────────────────────────────────────────────
-
 /// Raw pointer to the located `EFI_SERIAL_IO_PROTOCOL` interface.
 /// Null when the logger is shut down or no serial device was found.
-///
-/// Stored with `Release` on write and loaded with `Acquire` on read so that
-/// any code that observes a non-null pointer also sees all firmware writes to
-/// the protocol table that happened before `init` ran.
 static SERIAL_PTR: AtomicPtr<SerialIo> = AtomicPtr::new(core::ptr::null_mut());
 
-// ── Formatting helpers ────────────────────────────────────────────────────────
-
-/// Stack-allocated UTF-8 scratch buffer used inside `Log::log`.
-struct Buf<const N: usize> {
+/// Stack-allocated UTF-8 scratch buffer.
+///
+/// Implements [`core::fmt::Write`] with saturating overflow -- once full,
+/// additional bytes are dropped silently. Use [`Buf::as_bytes`] to read the
+/// filled portion.
+///
+/// `pub` so callers that supply their own [`log::Log`] can reuse it.
+pub struct Buf<const N: usize> {
     data: [u8; N],
     pos: usize,
 }
 
 impl<const N: usize> Buf<N> {
-    const fn new() -> Self {
+    /// Creates an empty buffer.
+    pub const fn new() -> Self {
         Self {
             data: [0u8; N],
             pos: 0,
         }
     }
 
-    fn as_bytes(&self) -> &[u8] {
+    /// Returns the bytes written so far.
+    pub fn as_bytes(&self) -> &[u8] {
         &self.data[..self.pos]
     }
 }
@@ -75,6 +74,17 @@ impl<const N: usize> core::fmt::Write for Buf<N> {
     }
 }
 
+/// Maps a [`log::Level`] to a fixed-width five-character label for log line alignment.
+pub fn level_str(level: log::Level) -> &'static str {
+    match level {
+        log::Level::Error => "ERROR",
+        log::Level::Warn => "WARN ",
+        log::Level::Info => "INFO ",
+        log::Level::Debug => "DEBUG",
+        log::Level::Trace => "TRACE",
+    }
+}
+
 struct SerialLogger;
 
 impl Log for SerialLogger {
@@ -87,41 +97,22 @@ impl Log for SerialLogger {
             return;
         }
 
-        // Acquire load pairs with the Release store in `init`. A non-null
-        // value guarantees we see all writes the firmware made to the
-        // protocol table before `init` stored the pointer.
         let ptr = SERIAL_PTR.load(Ordering::Acquire);
         if ptr.is_null() {
             return;
         }
 
-        let level_str = match record.level() {
-            log::Level::Error => "ERROR",
-            log::Level::Warn => "WARN ",
-            log::Level::Info => "INFO ",
-            log::Level::Debug => "DEBUG",
-            log::Level::Trace => "TRACE",
-        };
-
         let mut buf = Buf::<512>::new();
         let _ = write!(
             buf,
             "[{}] {}: {}\r\n",
-            level_str,
+            level_str(record.level()),
             record.target(),
             record.args(),
         );
 
-        // SAFETY:
-        // - `ptr` is non-null (checked above).
-        // - `SERIAL_PTR` is set to the firmware's `EFI_SERIAL_IO_PROTOCOL`
-        //   pointer in `init` and cleared to null in `shutdown`. Between
-        //   those two calls we are in boot services, single-threaded, and
-        //   the protocol interface pointer is stable.
-        // - We call through the raw pointer instead of creating a `&mut`
-        //   reference, because `Log::log` receives `&self` — materialising
-        //   `&mut SerialIo` from a shared-access path would violate Rust's
-        //   aliasing rules even though UEFI is single-threaded.
+        // SAFETY: ptr is non-null firmware-owned memory, stable between init and shutdown.
+        // Called through the raw pointer rather than &mut to avoid aliasing a shared-access path.
         let _ = unsafe { SerialIo::write_raw(ptr, buf.as_bytes()) };
     }
 
@@ -143,61 +134,63 @@ impl From<SetLoggerError> for InitError {
     }
 }
 
+/// Locates `EFI_SERIAL_IO_PROTOCOL` and caches its pointer.
+///
+/// This is the serial-location half of [`init`]. Call this when supplying a
+/// custom logger but still wanting serial output via [`write_serial_raw`].
+/// Safe to call multiple times; each call overwrites the cached pointer.
+pub fn locate_serial() {
+    let bs = effie::system_table().boot_services();
+    if let Ok(serial) = bs.locate_protocol::<SerialIo>() {
+        let raw = serial.get() as *const SerialIo as *mut SerialIo;
+        SERIAL_PTR.store(raw, Ordering::Release);
+    }
+}
+
+/// Writes raw bytes directly to the cached serial device.
+///
+/// Low-level escape hatch for panic handlers and other code that cannot use
+/// the `log` facade. Bypasses all formatting and level filtering. No-ops if
+/// no serial device was located or after [`shutdown`].
+pub fn write_serial_raw(buf: &[u8]) {
+    let ptr = SERIAL_PTR.load(Ordering::Acquire);
+    if ptr.is_null() {
+        return;
+    }
+    // SAFETY: same as in SerialLogger::log.
+    let _ = unsafe { SerialIo::write_raw(ptr, buf) };
+}
+
 /// Initialises the serial logger.
 ///
-/// Locates the first `EFI_SERIAL_IO_PROTOCOL` handle via `LocateProtocol` and
-/// caches the raw interface pointer. If no serial device is found the logger is
-/// still registered — log macro calls will be silent no-ops rather than
-/// falling back to the text console.
-///
-/// `level` sets the initial runtime filter. Change it at any time with
-/// [`set_level`].
+/// Locates the first `EFI_SERIAL_IO_PROTOCOL` via `LocateProtocol` and caches
+/// the raw interface pointer. If no serial device is found, log calls are
+/// silent no-ops. `level` sets the initial runtime filter.
 ///
 /// # Errors
 ///
 /// Returns [`InitError::AlreadyInitialized`] if a different global logger was
 /// already registered.
 pub fn init(level: LevelFilter) -> Result<(), InitError> {
-    // Locate the serial protocol. If unavailable, SERIAL_PTR stays null and
-    // all log calls are quiet no-ops.
-    let bs = effie::system_table().boot_services();
-    if let Ok(serial) = bs.locate_protocol::<SerialIo>() {
-        // `locate_protocol` uses `new_unscoped` — dropping Protocol<SerialIo>
-        // is a no-op (no CloseProtocol). The raw pointer stays valid until
-        // ExitBootServices (firmware won't uninstall system protocols).
-        //
-        // Cast `*const` → `*mut`: the protocol is firmware-owned memory that
-        // we access exclusively through its own vtable function pointers
-        // (which take `*mut Self`). We never create a Rust reference from
-        // this pointer; the cast records our intent to call through it.
-        let raw = serial.get() as *const SerialIo as *mut SerialIo;
-        SERIAL_PTR.store(raw, Ordering::Release);
-    }
-
+    locate_serial();
     log::set_logger(&LOGGER)?;
     log::set_max_level(level);
-
     Ok(())
 }
 
 /// Changes the runtime log level filter.
-///
-/// Takes effect immediately; no rebuild required.
 pub fn set_level(level: LevelFilter) {
     log::set_max_level(level);
 }
 
 /// Disables the logger and clears the cached serial pointer.
 ///
-/// Must be called before `ExitBootServices`. After this call all log macro
-/// invocations are silent no-ops and the protocol pointer will not be
-/// dereferenced.
+/// Must be called before `ExitBootServices`.
 ///
 /// # Safety
 ///
-/// The caller must ensure that no log macro calls are in flight on other
-/// processors at the time of this call. In practice UEFI is single-threaded
-/// before ExitBootServices, so this is trivially safe.
+/// No log calls may be in flight on other processors at the time of this call.
+/// In practice UEFI is single-threaded before ExitBootServices.
 pub unsafe fn shutdown() {
     SERIAL_PTR.store(core::ptr::null_mut(), Ordering::Release);
     log::set_max_level(LevelFilter::Off);
