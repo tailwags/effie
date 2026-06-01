@@ -5,7 +5,7 @@ use alloc::vec::Vec;
 use bitflags::bitflags;
 
 use crate::{
-    Event, Guid, Handle, HasProtocol, Protocol, Result, Status, protocols::DevicePath,
+    Event, Guid, Handle, HasProtocol, Protocol, Result, Status, log, protocols::DevicePath,
     tables::TableHeader,
 };
 
@@ -450,6 +450,8 @@ impl BootServices {
         handle: &Handle,
         agent: &Handle,
     ) -> Result<Protocol<P>> {
+        log::trace!("open_protocol: guid={}", P::GUID);
+
         let mut protocol = MaybeUninit::<*mut P>::uninit();
 
         let status = unsafe {
@@ -463,22 +465,48 @@ impl BootServices {
             )
         };
 
-        status.into_result()?;
+        if let Err(e) = status.into_result() {
+            log::debug!("open_protocol: guid={} returned {}", P::GUID, e);
+            return Err(e);
+        }
 
-        Protocol::new(unsafe { protocol.assume_init() }, *handle, *agent)
+        let raw = unsafe { protocol.assume_init() };
+
+        if raw.is_null() {
+            log::warn!(
+                "open_protocol: firmware returned null interface for guid={}",
+                P::GUID
+            );
+        }
+
+        Protocol::new(raw, *handle, *agent)
     }
 
     /// Finds the first handle that supports a protocol and returns its interface.
     /// (UEFI specification §7.3.16: EFI_BOOT_SERVICES.LocateProtocol())
     pub fn locate_protocol<P: crate::HasProtocol>(&self) -> Result<Protocol<P>> {
+        log::trace!("locate_protocol: guid={}", P::GUID);
+
         let mut protocol = MaybeUninit::<*mut P>::uninit();
 
         let status =
             unsafe { (self.locate_protocol)(&P::GUID, null_mut(), protocol.as_mut_ptr().cast()) };
 
-        status.into_result()?;
+        if let Err(e) = status.into_result() {
+            log::debug!("locate_protocol: guid={} returned {}", P::GUID, e);
+            return Err(e);
+        }
 
-        Protocol::new_unscoped(unsafe { protocol.assume_init() })
+        let raw = unsafe { protocol.assume_init() };
+
+        if raw.is_null() {
+            log::warn!(
+                "locate_protocol: firmware returned null interface for guid={}",
+                P::GUID
+            );
+        }
+
+        Protocol::new_unscoped(raw)
     }
 
     /// Closes a protocol interface previously opened via `open_protocol`.
@@ -521,6 +549,8 @@ impl BootServices {
     ///   unavailable. The caller must not use any `BootServices` reference, `Box`, `Vec`,
     ///   or other heap-backed type after a successful call.
     pub unsafe fn exit_boot_services(&self, image_handle: Handle, map_key: usize) -> Result {
+        // Caller must shut down the serial logger before this returns.
+        log::trace!("exit_boot_services: attempting with map_key={map_key}");
         unsafe { (self.exit_boot_services)(image_handle, map_key) }.into_result()
     }
 

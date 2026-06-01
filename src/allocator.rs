@@ -5,7 +5,7 @@ use core::{
 };
 
 use crate::{
-    system_table,
+    log, system_table,
     tables::{BootServices, MemoryType, PhysicalAddress},
 };
 
@@ -41,7 +41,12 @@ const fn page_alloc_eligible(layout: &Layout) -> bool {
 fn alloc_aligned(boot_services: &BootServices, size: usize, align: usize) -> *mut u8 {
     let raw: *mut u8 = match boot_services.allocate_pool(MemoryType::LOADER_DATA, size + align) {
         Ok(p) => p.cast(),
-        Err(_) => return null_mut(),
+        Err(err) => {
+            log::error!(
+                "allocator: allocate_pool (over-aligned) failed: size={size} align={align} err={err}"
+            );
+            return null_mut();
+        }
     };
 
     // allocate_pool gives 8-byte alignment; for align >= 16 (the minimum power-of-2
@@ -68,13 +73,25 @@ unsafe impl GlobalAlloc for Allocator {
             return boot_services
                 .allocate_any_pages(MemoryType::LOADER_DATA, layout.size() / PAGE_SIZE)
                 .map(|PhysicalAddress(addr)| addr as usize as *mut u8)
-                .unwrap_or(null_mut());
+                .unwrap_or_else(|err| {
+                    log::error!(
+                        "allocator: allocate_any_pages failed: size={size} err={err}",
+                        size = layout.size(),
+                    );
+                    null_mut()
+                });
         }
 
         if layout.align() <= 8 {
             boot_services
                 .allocate_pool(MemoryType::LOADER_DATA, layout.size())
-                .unwrap_or(null_mut())
+                .unwrap_or_else(|err| {
+                    log::error!(
+                        "allocator: allocate_pool failed: size={size} err={err}",
+                        size = layout.size(),
+                    );
+                    null_mut()
+                })
                 .cast()
         } else {
             alloc_aligned(boot_services, layout.size(), layout.align())
@@ -88,7 +105,10 @@ unsafe impl GlobalAlloc for Allocator {
             let result = unsafe {
                 boot_services.free_pages(PhysicalAddress(ptr as u64), layout.size() / PAGE_SIZE)
             };
-            debug_assert!(result.is_ok(), "free_pages failed: {:?}", result.err());
+            if let Err(err) = result {
+                log::error!("allocator: free_pages failed: {err}");
+                debug_assert!(false, "free_pages failed: {err:?}");
+            }
             return;
         }
 
@@ -99,6 +119,9 @@ unsafe impl GlobalAlloc for Allocator {
         };
 
         let result = unsafe { boot_services.free_pool(raw) };
-        debug_assert!(result.is_ok(), "free_pool failed: {:?}", result.err());
+        if let Err(err) = result {
+            log::error!("allocator: free_pool failed: {err}");
+            debug_assert!(false, "free_pool failed: {err:?}");
+        }
     }
 }

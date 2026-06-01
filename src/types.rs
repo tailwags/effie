@@ -20,6 +20,11 @@ impl Handle {
         Self(raw)
     }
 
+    /// Returns the underlying raw pointer.
+    pub const fn as_ptr(self) -> *mut c_void {
+        self.0
+    }
+
     /// Returns a null handle.
     pub const fn null() -> Self {
         Handle(null_mut())

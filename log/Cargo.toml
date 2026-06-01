@@ -1,0 +1,14 @@
+[package]
+name = "effie-log"
+version = "0.0.1"
+edition = "2024"
+license = "Apache-2.0"
+authors = ["Matilde Morrone <contact@matilde.pet>"]
+description = "Serial-backed log facade for UEFI applications using effie"
+documentation = "https://docs.rs/effie-log"
+repository = "https://github.com/tailwags/effie"
+readme = "README.md"
+
+[dependencies]
+effie = { version = "0.0.1", path = ".." }
+log = { version = "0.4", default-features = false }

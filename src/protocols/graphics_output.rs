@@ -1,4 +1,4 @@
-use crate::{Guid, HasGuid, HasProtocol, Result, Status};
+use crate::{Guid, HasGuid, HasProtocol, Result, Status, log};
 
 /// UEFI Graphics Output Protocol. Provides a framebuffer-based graphics output interface.
 /// (UEFI specification §12.9.2: EFI_GRAPHICS_OUTPUT_PROTOCOL)
@@ -141,7 +141,11 @@ impl GraphicsOutput {
     pub fn query_mode(&self, mode_number: u32) -> Result<*const GraphicsOutputModeInformation> {
         let mut size: usize = 0;
         let mut info: *const GraphicsOutputModeInformation = core::ptr::null();
-        unsafe { (self.query_mode)(self, mode_number, &mut size, &mut info) }.into_result()?;
+        let status = unsafe { (self.query_mode)(self, mode_number, &mut size, &mut info) };
+        if let Err(err) = status.into_result() {
+            log::debug!("GraphicsOutput::query_mode: mode {mode_number} returned {err}");
+            return Err(err);
+        }
         Ok(info)
     }
 
@@ -155,6 +159,11 @@ impl GraphicsOutput {
 
     /// Sets the graphics output mode. (UEFI specification §12.9.2.2)
     pub fn set_mode(&mut self, mode_number: u32) -> Result {
-        unsafe { (self.set_mode)(self, mode_number) }.into_result()
+        let status = unsafe { (self.set_mode)(self, mode_number) }.into_result();
+        if let Err(err) = status {
+            log::warn!("GraphicsOutput::set_mode: mode {mode_number} returned {err}");
+            return Err(err);
+        }
+        Ok(())
     }
 }

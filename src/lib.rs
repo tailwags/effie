@@ -40,7 +40,11 @@
 
 extern crate alloc;
 
-use core::mem::MaybeUninit;
+use core::{
+    ffi::c_void,
+    ptr::{self, NonNull},
+    sync::atomic::{AtomicPtr, Ordering},
+};
 
 mod allocator;
 mod protocol;
@@ -49,6 +53,7 @@ mod types;
 mod wstr;
 
 pub mod guid;
+pub mod log;
 pub mod protocols;
 pub mod tables;
 
@@ -63,35 +68,47 @@ pub use effie_macros::w;
 
 use tables::SystemTable;
 
-static mut SYSTEM_TABLE: MaybeUninit<&SystemTable> = MaybeUninit::uninit();
-static mut IMAGE_HANDLE: MaybeUninit<Handle> = MaybeUninit::uninit();
+static SYSTEM_TABLE: AtomicPtr<SystemTable> = AtomicPtr::new(ptr::null_mut());
+static IMAGE_HANDLE: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
 
 #[global_allocator]
 static ALLOCATOR: Allocator = Allocator;
 
 #[unsafe(no_mangle)]
-extern "efiapi" fn efi_main(image_handle: Handle, system_table: &'static SystemTable) -> Status {
+extern "efiapi" fn efi_main(image_handle: Handle, raw_system_table: *mut SystemTable) -> Status {
     unsafe extern "Rust" {
         fn main() -> Result;
     }
 
-    #[allow(clippy::deref_addrof)]
-    unsafe {
-        (*&raw mut SYSTEM_TABLE).write(system_table);
-        (*&raw mut IMAGE_HANDLE).write(image_handle);
-    };
+    SYSTEM_TABLE.store(raw_system_table, Ordering::Release);
+    IMAGE_HANDLE.store(image_handle.as_ptr(), Ordering::Release);
+
+    // Safety: we just stored a valid pointer above.
 
     unsafe {
         if let Err(status) = main() {
-            if let Ok(mut con_out) = system_table.con_out() {
+            log::error!("main() returned Err({status})");
+
+            if let Ok(mut con_out) = system_table().con_out() {
                 let _ = con_out.output_line(status.description());
             }
 
             status
         } else {
+            log::warn!("main() returned Ok");
+
             Status::SUCCESS
         }
     }
+}
+
+/// Returns the UEFI System Table pointer, or `None` if called before
+/// `efi_main` has initialised the global (e.g. during static initialisation).
+///
+/// The returned [`NonNull`] pointer is valid for the lifetime of the UEFI
+/// session. Prefer [`system_table`] for normal use.
+pub fn system_table_raw() -> Option<NonNull<SystemTable>> {
+    NonNull::new(SYSTEM_TABLE.load(Ordering::Acquire))
 }
 
 /// Returns the UEFI System Table.
@@ -104,7 +121,28 @@ extern "efiapi" fn efi_main(image_handle: Handle, system_table: &'static SystemT
 /// Panics if called before `efi_main` has written the pointer (i.e. during
 /// static initialisation).
 pub fn system_table() -> &'static SystemTable {
-    unsafe { SYSTEM_TABLE.assume_init() }
+    // Safety: the pointer was stored by efi_main from a firmware-provided
+    // `*mut SystemTable` that is valid for the lifetime of the UEFI session.
+    unsafe {
+        system_table_raw()
+            .expect("system_table() called before efi_main")
+            .as_ref()
+    }
+}
+
+/// Returns the image handle, or `None` if called before `efi_main` has
+/// initialised the global.
+///
+/// Prefer [`image_handle`] for normal use.
+pub fn image_handle_raw() -> Option<Handle> {
+    let ptr = IMAGE_HANDLE.load(Ordering::Acquire);
+    if ptr.is_null() {
+        None
+    } else {
+        // Safety: the pointer was stored by efi_main from a firmware-provided
+        // image handle that is valid for the lifetime of the UEFI session.
+        Some(unsafe { Handle::from_raw(ptr) })
+    }
 }
 
 /// Returns the image handle that was passed to `efi_main`.
@@ -115,5 +153,5 @@ pub fn system_table() -> &'static SystemTable {
 ///
 /// Panics if called before `efi_main` has written the handle.
 pub fn image_handle() -> Handle {
-    unsafe { IMAGE_HANDLE.assume_init() }
+    image_handle_raw().expect("image_handle() called before efi_main")
 }

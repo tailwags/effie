@@ -1,3 +1,5 @@
+use core::fmt;
+
 use effie_macros::w_internal;
 
 use crate::WStr;
@@ -220,5 +222,60 @@ impl Status {
             }
             _ => w_internal!("Unknown status."),
         }
+    }
+
+    /// Returns a short ASCII name for this status code, suitable for use in
+    /// [`core::fmt::Display`] and log messages.
+    pub const fn name(&self) -> &'static str {
+        match *self {
+            Self::SUCCESS => "SUCCESS",
+            Self::LOAD_ERROR => "LOAD_ERROR",
+            Self::INVALID_PARAMETER => "INVALID_PARAMETER",
+            Self::UNSUPPORTED => "UNSUPPORTED",
+            Self::BAD_BUFFER_SIZE => "BAD_BUFFER_SIZE",
+            Self::BUFFER_TOO_SMALL => "BUFFER_TOO_SMALL",
+            Self::NOT_READY => "NOT_READY",
+            Self::DEVICE_ERROR => "DEVICE_ERROR",
+            Self::WRITE_PROTECTED => "WRITE_PROTECTED",
+            Self::OUT_OF_RESOURCES => "OUT_OF_RESOURCES",
+            Self::VOLUME_CORRUPTED => "VOLUME_CORRUPTED",
+            Self::VOLUME_FULL => "VOLUME_FULL",
+            Self::NO_MEDIA => "NO_MEDIA",
+            Self::MEDIA_CHANGED => "MEDIA_CHANGED",
+            Self::NOT_FOUND => "NOT_FOUND",
+            Self::ACCESS_DENIED => "ACCESS_DENIED",
+            Self::NO_RESPONSE => "NO_RESPONSE",
+            Self::NO_MAPPING => "NO_MAPPING",
+            Self::TIMEOUT => "TIMEOUT",
+            Self::NOT_STARTED => "NOT_STARTED",
+            Self::ALREADY_STARTED => "ALREADY_STARTED",
+            Self::ABORTED => "ABORTED",
+            Self::ICMP_ERROR => "ICMP_ERROR",
+            Self::TFTP_ERROR => "TFTP_ERROR",
+            Self::PROTOCOL_ERROR => "PROTOCOL_ERROR",
+            Self::INCOMPATIBLE_VERSION => "INCOMPATIBLE_VERSION",
+            Self::SECURITY_VIOLATION => "SECURITY_VIOLATION",
+            Self::CRC_ERROR => "CRC_ERROR",
+            Self::END_OF_MEDIA => "END_OF_MEDIA",
+            Self::END_OF_FILE => "END_OF_FILE",
+            Self::INVALID_LANGUAGE => "INVALID_LANGUAGE",
+            Self::COMPROMISED_DATA => "COMPROMISED_DATA",
+            Self::IP_ADDRESS_CONFLICT => "IP_ADDRESS_CONFLICT",
+            Self::HTTP_ERROR => "HTTP_ERROR",
+            Self::WARN_UNKNOWN_GLYPH => "WARN_UNKNOWN_GLYPH",
+            Self::WARN_DELETE_FAILURE => "WARN_DELETE_FAILURE",
+            Self::WARN_WRITE_FAILURE => "WARN_WRITE_FAILURE",
+            Self::WARN_BUFFER_TOO_SMALL => "WARN_BUFFER_TOO_SMALL",
+            Self::WARN_STALE_DATA => "WARN_STALE_DATA",
+            Self::WARN_FILE_SYSTEM => "WARN_FILE_SYSTEM",
+            Self::WARN_RESET_REQUIRED => "WARN_RESET_REQUIRED",
+            _ => "UNKNOWN",
+        }
+    }
+}
+
+impl fmt::Display for Status {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.name())
     }
 }

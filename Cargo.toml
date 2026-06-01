@@ -1,5 +1,5 @@
 [workspace]
-members = ["macros"]
+members = ["macros", "log"]
 
 [package]
 name = "effie"
@@ -15,9 +15,11 @@ readme = "README.md"
 
 [features]
 serde = ["dep:serde_core"]
+log = ["dep:log"]
 
 [dependencies]
 bitflags = "2.11.1"
 itoa = "1.0.18"
 effie-macros = { version = "0.0.1", path = "macros" }
+log = { version = "0.4", default-features = false, optional = true }
 serde_core = { version = "1.0.228", default-features = false, optional = true }

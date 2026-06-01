@@ -1,7 +1,7 @@
 use core::mem::MaybeUninit;
 
 use crate::{
-    Guid, HasGuid, HasProtocol, Result, Status,
+    Guid, HasGuid, HasProtocol, Result, Status, log,
     protocols::{File, FileHandle},
 };
 
@@ -31,10 +31,15 @@ impl SimpleFilesystem {
     /// Opens the root directory of the volume. Returns a `FileHandle` for the root.
     /// (UEFI specification §13.4.2)
     pub fn open_volume(&mut self) -> Result<FileHandle> {
+        log::trace!("SimpleFilesystem::open_volume");
+
         let mut volume = MaybeUninit::<*mut File>::uninit();
         let status = unsafe { (self.open_volume)(self, volume.as_mut_ptr()) };
 
-        status.into_result()?;
+        if let Err(err) = status.into_result() {
+            log::debug!("SimpleFilesystem::open_volume returned {err}");
+            return Err(err);
+        }
 
         FileHandle::new(unsafe { volume.assume_init() })
     }

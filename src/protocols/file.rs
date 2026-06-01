@@ -9,6 +9,7 @@ use alloc::vec;
 
 use bitflags::bitflags;
 
+use crate::log;
 use crate::{Guid, HasGuid, Result, Status, Time, WStr, WString};
 
 /// UEFI File Protocol. Provides file I/O operations on a UEFI-compliant file system.
@@ -90,6 +91,7 @@ impl FileHandle {
     /// `Err(Status::UNSUPPORTED)` if the pointer is null.
     pub(crate) fn new(raw: *mut File) -> Result<Self> {
         if raw.is_null() {
+            log::warn!("FileHandle::new: firmware returned null file handle");
             return Err(Status::UNSUPPORTED);
         }
         Ok(Self {
@@ -226,11 +228,16 @@ impl HasGuid for FileInfoHeader {
 impl File {
     /// Opens a file relative to this directory handle. (UEFI specification §13.5.2)
     pub fn open(&mut self, file_name: &WStr, open_mode: FileMode) -> Result<FileHandle> {
+        log::trace!("File::open: mode={open_mode:?}");
+
         let mut file = MaybeUninit::<*mut File>::uninit();
         let status =
             unsafe { (self.open)(self, file.as_mut_ptr(), file_name.as_ptr(), open_mode, 0) };
 
-        status.into_result()?;
+        if let Err(err) = status.into_result() {
+            log::debug!("File::open returned {err}");
+            return Err(err);
+        }
 
         FileHandle::new(unsafe { file.assume_init() })
     }
@@ -247,21 +254,29 @@ impl File {
     /// Reads data from the file at the current position. Returns the number of bytes
     /// read. (UEFI specification §13.5.5)
     pub fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+        log::trace!("File::read: buf_len={}", buf.len());
         let mut size = buf.len();
 
-        unsafe { (self.read)(self, &mut size, buf.as_mut_ptr().cast()) }
-            .into_result()
-            .map(|_| size)
+        let status = unsafe { (self.read)(self, &mut size, buf.as_mut_ptr().cast()) };
+        if let Err(err) = status.into_result() {
+            log::debug!("File::read returned {err}");
+            return Err(err);
+        }
+        Ok(size)
     }
 
     /// Writes data to the file at the current position. Returns the number of bytes
     /// written. (UEFI specification §13.5.6)
     pub fn write(&mut self, buf: &[u8]) -> Result<usize> {
+        log::trace!("File::write: buf_len={}", buf.len());
         let mut size = buf.len();
 
-        unsafe { (self.write)(self, &mut size, buf.as_ptr().cast()) }
-            .into_result()
-            .map(|_| size)
+        let status = unsafe { (self.write)(self, &mut size, buf.as_ptr().cast()) };
+        if let Err(err) = status.into_result() {
+            log::debug!("File::write returned {err}");
+            return Err(err);
+        }
+        Ok(size)
     }
 
     /// Returns the current file position. (UEFI specification §13.5.12)
@@ -297,11 +312,13 @@ impl File {
         };
 
         if status != Status::BUFFER_TOO_SMALL {
-            return Err(if status.is_error() {
+            let err = if status.is_error() {
                 status
             } else {
                 Status::DEVICE_ERROR
-            });
+            };
+            log::debug!("File::get_info size probe returned unexpected status {err}",);
+            return Err(err);
         }
 
         let mut buf = vec![0u8; size];
@@ -317,6 +334,9 @@ impl File {
         .into_result()?;
 
         if size < FILE_INFO_HEADER_SIZE {
+            log::debug!(
+                "File::get_info: firmware returned buffer too small ({size} < {FILE_INFO_HEADER_SIZE})"
+            );
             return Err(Status::DEVICE_ERROR);
         }
 
@@ -324,6 +344,7 @@ impl File {
 
         let file_name_bytes = size - FILE_INFO_HEADER_SIZE;
         if file_name_bytes < 2 || !file_name_bytes.is_multiple_of(2) {
+            log::debug!("File::get_info: malformed file name region ({file_name_bytes} bytes)");
             return Err(Status::DEVICE_ERROR);
         }
 
@@ -335,7 +356,10 @@ impl File {
         };
 
         let file_name = WStr::from_slice(file_name_slice)
-            .ok_or(Status::DEVICE_ERROR)?
+            .ok_or_else(|| {
+                log::debug!("File::get_info: file name is not null-terminated");
+                Status::DEVICE_ERROR
+            })?
             .into();
 
         Ok(FileInfo { header, file_name })
