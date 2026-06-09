@@ -233,12 +233,37 @@ impl core::fmt::Debug for WStr {
 
 // ── Chars iterator ────────────────────────────────────────────────────────────
 
+/// Decodes the next UTF-16 character from `slice`.
+///
+/// Returns `(char, units_consumed, remaining_slice)`, or `None` if `slice` is
+/// empty. Surrogate pairs are decoded to their supplementary-plane code point.
+/// Unpaired surrogates yield [`char::REPLACEMENT_CHARACTER`].
+#[inline]
+fn decode_next(slice: &[u16]) -> Option<(char, usize, &[u16])> {
+    let (&unit, rest) = slice.split_first()?;
+
+    if !(0xD800..=0xDFFF).contains(&unit) {
+        // SAFETY: non-surrogate BMP code units are valid Unicode scalar values.
+        return Some((unsafe { char::from_u32_unchecked(unit as u32) }, 1, rest));
+    }
+
+    if (0xD800..=0xDBFF).contains(&unit)
+        && let Some((&low, rest2)) = rest.split_first()
+        && (0xDC00..=0xDFFF).contains(&low)
+    {
+        let cp = 0x10000u32 + ((unit as u32 - 0xD800) << 10) + (low as u32 - 0xDC00);
+        // SAFETY: valid surrogate pairs always decode to U+10000..=U+10FFFF.
+        return Some((unsafe { char::from_u32_unchecked(cp) }, 2, rest2));
+    }
+
+    Some((char::REPLACEMENT_CHARACTER, 1, rest))
+}
+
 /// Iterator over the [`char`] values of a [`WStr`].
 ///
 /// Created by [`WStr::chars`]. Decodes UTF-16 surrogate pairs; unpaired
 /// surrogates yield [`char::REPLACEMENT_CHARACTER`].
 pub struct Chars<'a> {
-    /// Remaining code units to decode.
     slice: &'a [u16],
 }
 
@@ -246,25 +271,9 @@ impl Iterator for Chars<'_> {
     type Item = char;
 
     fn next(&mut self) -> Option<char> {
-        let (&unit, rest) = self.slice.split_first()?;
+        let (c, _, rest) = decode_next(self.slice)?;
         self.slice = rest;
-
-        if !(0xD800..=0xDFFF).contains(&unit) {
-            // SAFETY: non-surrogate BMP code units are valid Unicode scalar values
-            return Some(unsafe { char::from_u32_unchecked(unit as u32) });
-        }
-
-        if (0xD800..=0xDBFF).contains(&unit)
-            && let Some((&low, rest2)) = rest.split_first()
-            && (0xDC00..=0xDFFF).contains(&low)
-        {
-            self.slice = rest2;
-            let codepoint = 0x10000u32 + ((unit as u32 - 0xD800) << 10) + (low as u32 - 0xDC00);
-            // SAFETY: valid surrogate pairs always decode to U+10000..=U+10FFFF
-            return Some(unsafe { char::from_u32_unchecked(codepoint) });
-        }
-
-        Some(char::REPLACEMENT_CHARACTER)
+        Some(c)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -283,9 +292,7 @@ impl core::iter::FusedIterator for Chars<'_> {}
 ///
 /// Created by [`WStr::char_indices`].
 pub struct CharIndices<'a> {
-    /// Remaining code units to decode.
     slice: &'a [u16],
-    /// Code-unit offset of the next character.
     offset: usize,
 }
 
@@ -293,30 +300,11 @@ impl Iterator for CharIndices<'_> {
     type Item = (usize, char);
 
     fn next(&mut self) -> Option<(usize, char)> {
-        let (&unit, rest) = self.slice.split_first()?;
         let idx = self.offset;
-
-        if !(0xD800..=0xDFFF).contains(&unit) {
-            self.slice = rest;
-            self.offset += 1;
-            // SAFETY: non-surrogate BMP code units are valid Unicode scalar values
-            return Some((idx, unsafe { char::from_u32_unchecked(unit as u32) }));
-        }
-
-        if (0xD800..=0xDBFF).contains(&unit)
-            && let Some((&low, rest2)) = rest.split_first()
-            && (0xDC00..=0xDFFF).contains(&low)
-        {
-            self.slice = rest2;
-            self.offset += 2;
-            let cp = 0x10000u32 + ((unit as u32 - 0xD800) << 10) + (low as u32 - 0xDC00);
-            // SAFETY: valid surrogate pairs always decode to U+10000..=U+10FFFF
-            return Some((idx, unsafe { char::from_u32_unchecked(cp) }));
-        }
-
+        let (c, advance, rest) = decode_next(self.slice)?;
         self.slice = rest;
-        self.offset += 1;
-        Some((idx, char::REPLACEMENT_CHARACTER))
+        self.offset += advance;
+        Some((idx, c))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
