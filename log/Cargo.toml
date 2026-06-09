@@ -7,7 +7,7 @@ authors = ["Matilde Morrone <contact@matilde.pet>"]
 description = "Serial-backed log facade for UEFI applications using effie"
 documentation = "https://docs.rs/effie-log"
 repository = "https://github.com/tailwags/effie"
-readme = "README.md"
+readme = "../README.md"
 
 [dependencies]
 effie = { version = "0.1.0", path = ".." }
