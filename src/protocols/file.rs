@@ -349,6 +349,10 @@ impl File {
         }
 
         let file_name_slice = unsafe {
+            // SAFETY: AllocatePool gives >= 8-byte alignment. FILE_INFO_HEADER_SIZE is
+            // size_of::<FileInfoHeader>() = 80 bytes (a multiple of 8), so the pointer
+            // after the header is also 8-byte aligned, satisfying u16's requirement.
+            // The byte count was validated to be >= 2 and even.
             core::slice::from_raw_parts(
                 buf.as_ptr().add(FILE_INFO_HEADER_SIZE) as *const u16,
                 file_name_bytes / 2,
