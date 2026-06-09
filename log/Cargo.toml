@@ -10,5 +10,5 @@ repository = "https://github.com/tailwags/effie"
 readme = "README.md"
 
 [dependencies]
-effie = { version = "0.0.1", path = ".." }
+effie = { version = "0.1.0", path = ".." }
 log = { version = "0.4", default-features = false }

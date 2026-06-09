@@ -6,7 +6,7 @@ license = "Apache-2.0"
 authors = ["Matilde Morrone <contact@morrone.dev>"]
 description = "Macros for effie"
 documentation = "https://docs.rs/effie-macros"
-repository = "https://github.com/bread-bootloader/bread"
+repository = "https://github.com/tailwags/effie"
 include = ["src/**/*.rs", "../README.md", "LICENSE"]
 readme = "../README.md"
 

@@ -3,7 +3,7 @@ members = ["macros", "log"]
 
 [package]
 name = "effie"
-version = "0.0.1"
+version = "0.1.0"
 edition = "2024"
 license = "Apache-2.0"
 authors = ["Matilde Morrone <contact@matilde.pet>"]
@@ -18,7 +18,7 @@ serde = ["dep:serde_core"]
 log = ["dep:log"]
 
 [dependencies]
-bitflags = "2.11.1"
+bitflags = "2.13.0"
 itoa = "1.0.18"
 effie-macros = { version = "0.0.1", path = "macros" }
 log = { version = "0.4", default-features = false, optional = true }
