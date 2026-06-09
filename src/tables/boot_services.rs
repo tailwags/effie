@@ -318,9 +318,12 @@ impl MemoryMap {
     /// Iterates over [`MemoryDescriptor`] entries in the memory map. Uses `descriptor_size`
     /// as the stride, which may exceed `size_of::<MemoryDescriptor>()`.
     pub fn iter(&self) -> impl Iterator<Item = &MemoryDescriptor> {
-        self.buffer
-            .chunks(self.descriptor_size)
-            .map(|chunk| unsafe { &*(chunk.as_ptr() as *const MemoryDescriptor) })
+        self.buffer.chunks(self.descriptor_size).map(|chunk| {
+            // SAFETY: AllocatePool provides >= 8-byte alignment; the spec requires
+            // descriptor_size to be a multiple of align_of::<MemoryDescriptor>(), so
+            // every chunk pointer is aligned. UEFI fills the buffer with valid data.
+            unsafe { &*(chunk.as_ptr() as *const MemoryDescriptor) }
+        })
     }
 }
 
@@ -396,6 +399,30 @@ impl BootServices {
     /// `allocate_pages_at_address`, and `pages` must match the count from that call.
     pub unsafe fn free_pages(&self, memory: PhysicalAddress, pages: usize) -> Result {
         unsafe { (self.free_pages)(memory, pages) }.into_result()
+    }
+
+    /// Allocates pages at the highest available address at or below `max_address`.
+    /// (UEFI specification §7.2.1: AllocatePages with AllocateMaxAddress.)
+    ///
+    /// Use when a buffer must reside below a ceiling such as `initrd_addr_max`.
+    pub fn allocate_max_address_pages(
+        &self,
+        memory_type: MemoryType,
+        pages: usize,
+        max_address: PhysicalAddress,
+    ) -> Result<PhysicalAddress> {
+        let mut memory = max_address;
+
+        unsafe {
+            (self.allocate_pages)(
+                AllocateType::ALLOCATE_MAX_ADDRESS,
+                memory_type,
+                pages,
+                &mut memory,
+            )
+        }
+        .into_result()
+        .map(|_| memory)
     }
 
     /// Allocates pages at a specific physical address.
@@ -515,6 +542,32 @@ impl BootServices {
         unsafe { (self.close_protocol)(*handle, &P::GUID, *agent, Handle::null()) }.into_result()
     }
 
+    /// Loads a UEFI image from a buffer and returns its handle.
+    /// (UEFI specification §7.4.1: EFI_BOOT_SERVICES.LoadImage())
+    ///
+    /// `device_path` is null; the firmware uses the memory-mapped device path.
+    /// Start the image with [`start_image`][Self::start_image].
+    pub fn load_image(
+        &self,
+        parent_image_handle: Handle,
+        source_buffer: *const core::ffi::c_void,
+        source_size: usize,
+    ) -> Result<Handle> {
+        let mut image_handle = Handle::null();
+        unsafe {
+            (self.load_image)(
+                false,
+                parent_image_handle,
+                core::ptr::null(),
+                source_buffer,
+                source_size,
+                &mut image_handle,
+            )
+        }
+        .into_result()
+        .map(|_| image_handle)
+    }
+
     /// Transfers control to a loaded image. (UEFI specification §7.4.2:
     /// EFI_BOOT_SERVICES.StartImage())
     pub fn start_image(&self, image_handle: Handle) -> Result {
@@ -524,14 +577,53 @@ impl BootServices {
     /// Returns the current boot services memory map and memory map key.
     /// (UEFI specification §7.2.3: EFI_BOOT_SERVICES.GetMemoryMap())
     pub fn get_memory_map(&self) -> Result<MemoryMap> {
-        todo!(
-            "call get_memory_map raw fn with size=0 to get required size; \
-             allocate Vec<u8> of that size plus two descriptor_size worth of slack \
-             (allocating the Vec itself changes the map); call get_memory_map again \
-             to fill the buffer; return MemoryMap with buffer, map_key, descriptor_size, \
-             descriptor_version. Return Err if the status is not BUFFER_TOO_SMALL on the \
-             first probe call."
-        )
+        let mut map_size: usize = 0;
+        let mut map_key: usize = 0;
+        let mut descriptor_size: usize = 0;
+        let mut descriptor_version: u32 = 0;
+
+        // First call with a null buffer to get the required size.
+        // Firmware must return BUFFER_TOO_SMALL.
+        let probe_status = unsafe {
+            (self.get_memory_map)(
+                &mut map_size,
+                core::ptr::null_mut(),
+                &mut map_key,
+                &mut descriptor_size,
+                &mut descriptor_version,
+            )
+        };
+        if probe_status != crate::Status::BUFFER_TOO_SMALL {
+            probe_status.into_result()?;
+        }
+
+        // Add slack for the allocation below, which extends the map.
+        map_size += descriptor_size * 2;
+
+        let mut buffer: Vec<u8> = Vec::with_capacity(map_size);
+        buffer.resize(map_size, 0u8);
+
+        // Second call fills the buffer.
+        let fill_status = unsafe {
+            (self.get_memory_map)(
+                &mut map_size,
+                buffer.as_mut_ptr() as *mut MemoryDescriptor,
+                &mut map_key,
+                &mut descriptor_size,
+                &mut descriptor_version,
+            )
+        };
+        fill_status.into_result()?;
+
+        // Truncate to the bytes actually written.
+        buffer.truncate(map_size);
+
+        Ok(MemoryMap {
+            buffer,
+            map_key,
+            descriptor_size,
+            descriptor_version,
+        })
     }
 
     /// Terminates all boot services. After this call, only runtime services and the memory map

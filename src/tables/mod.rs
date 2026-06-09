@@ -28,6 +28,8 @@ impl Signature {
     pub const SYSTEM_TABLE: Self = Self(0x5453595320494249);
     /// EFI_BOOT_SERVICES_SIGNATURE. Value: 0x56524553544f4f42 ('BOOTSERV').
     pub const BOOT_SERVICES: Self = Self(0x56524553544f4f42);
+    /// EFI_RUNTIME_SERVICES_SIGNATURE. Value: 0x56524553544e5552 ('RUNTSERV').
+    pub const RUNTIME_SERVICES: Self = Self(0x56524553544e5552);
 }
 
 /// Data structure that precedes all of the standard EFI table types. (UEFI specification §4.2)
