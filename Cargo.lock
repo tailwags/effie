@@ -21,7 +21,7 @@ dependencies = [
 
 [[package]]
 name = "effie-log"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "effie",
  "log",
@@ -29,7 +29,7 @@ dependencies = [
 
 [[package]]
 name = "effie-macros"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "quote",
  "syn",
