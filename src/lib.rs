@@ -64,7 +64,27 @@ pub use status::{Result, Status};
 pub use types::*;
 pub use wstr::{CharIndices, Chars, WStr, WString};
 
-pub use effie_macros::w;
+#[doc(hidden)]
+pub use effie_macros::wstr_units as __wstr_units;
+
+/// Constructs a statically allocated [`WStr`] from a UTF-8 string literal.
+///
+/// The literal is encoded as UTF-16 at compile time and terminated with a null code unit.
+/// Interior null characters are rejected at compile time.
+///
+/// # Examples
+///
+/// ```ignore
+/// let hello: &'static effie::WStr = effie::w!("Hello, UEFI!");
+/// ```
+#[macro_export]
+macro_rules! w {
+    ($literal:literal) => {{
+        const __EFFIE_WSTR: &$crate::WStr =
+            unsafe { $crate::WStr::from_slice_unchecked($crate::__wstr_units!($literal)) };
+        __EFFIE_WSTR
+    }};
+}
 
 use tables::SystemTable;
 

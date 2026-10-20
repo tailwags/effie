@@ -12,9 +12,7 @@ pub use boot_services::*;
 pub use runtime_services::*;
 pub use system::*;
 
-use effie_macros::w_internal;
-
-use crate::WStr;
+use crate::{WStr, w};
 
 /// A 64-bit signature that identifies the type of table that follows. Unique signatures have
 /// been generated for the EFI System Table, the EFI Boot Services Table, and the EFI Runtime
@@ -91,21 +89,21 @@ impl SpecificationRevision {
     /// Returns a string representation of this revision, suitable for display.
     pub const fn as_str(&self) -> &WStr {
         match *self {
-            Self::EFI_2_100 => w_internal!("2.10"),
-            Self::EFI_2_90 => w_internal!("2.9"),
-            Self::EFI_2_80 => w_internal!("2.8"),
-            Self::EFI_2_70 => w_internal!("2.7"),
-            Self::EFI_2_60 => w_internal!("2.6"),
-            Self::EFI_2_50 => w_internal!("2.5"),
-            Self::EFI_2_40 => w_internal!("2.4"),
-            Self::EFI_2_31 => w_internal!("2.3.1"),
-            Self::EFI_2_30 => w_internal!("2.3"),
-            Self::EFI_2_20 => w_internal!("2.2"),
-            Self::EFI_2_10 => w_internal!("2.1"),
-            Self::EFI_2_00 => w_internal!("2.0"),
-            Self::EFI_1_10 => w_internal!("1.1"),
-            Self::EFI_1_02 => w_internal!("1.0.2"),
-            _ => w_internal!("unknown"),
+            Self::EFI_2_100 => w!("2.10"),
+            Self::EFI_2_90 => w!("2.9"),
+            Self::EFI_2_80 => w!("2.8"),
+            Self::EFI_2_70 => w!("2.7"),
+            Self::EFI_2_60 => w!("2.6"),
+            Self::EFI_2_50 => w!("2.5"),
+            Self::EFI_2_40 => w!("2.4"),
+            Self::EFI_2_31 => w!("2.3.1"),
+            Self::EFI_2_30 => w!("2.3"),
+            Self::EFI_2_20 => w!("2.2"),
+            Self::EFI_2_10 => w!("2.1"),
+            Self::EFI_2_00 => w!("2.0"),
+            Self::EFI_1_10 => w!("1.1"),
+            Self::EFI_1_02 => w!("1.0.2"),
+            _ => w!("unknown"),
         }
     }
 }

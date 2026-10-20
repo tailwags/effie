@@ -1,6 +1,4 @@
-use effie_macros::w_internal;
-
-use crate::{Guid, HasGuid, HasProtocol, Result, Status, WStr};
+use crate::{Guid, HasGuid, HasProtocol, Result, Status, WStr, w};
 
 /// UEFI Simple Text Output Protocol. Used to control text-based output devices.
 /// (UEFI specification §12.4: EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL)
@@ -102,7 +100,7 @@ impl SimpleTextOutput {
     /// Writes a string followed by CR+LF to the output device.
     pub fn output_line(&mut self, string: &WStr) -> Result {
         self.output_string(string)?;
-        self.output_string(w_internal!("\r\n"))
+        self.output_string(w!("\r\n"))
     }
 
     /// Clears the screen with the currently set background color. (UEFI specification §12.4.8)
