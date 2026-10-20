@@ -42,6 +42,7 @@ extern crate alloc;
 
 use core::{
     ffi::c_void,
+    mem::ManuallyDrop,
     ptr::{self, NonNull},
     sync::atomic::{AtomicPtr, Ordering},
 };
@@ -86,7 +87,7 @@ macro_rules! w {
     }};
 }
 
-use tables::SystemTable;
+use tables::{MemoryMap, SystemTable};
 
 static SYSTEM_TABLE: AtomicPtr<SystemTable> = AtomicPtr::new(ptr::null_mut());
 static IMAGE_HANDLE: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
@@ -174,4 +175,38 @@ pub fn image_handle_raw() -> Option<Handle> {
 /// Panics if called before `efi_main` has written the handle.
 pub fn image_handle() -> Handle {
     image_handle_raw().expect("image_handle() called before efi_main")
+}
+
+/// Exits boot services on behalf of the running image and returns the final memory map.
+///
+/// `ExitBootServices` fails with `EFI_INVALID_PARAMETER` when the memory map changed
+/// after it was fetched; the map is then fetched again and the call retried a few times.
+/// (UEFI specification §7.4.6)
+///
+/// The map's buffer comes from the pool allocator, which no longer exists once this
+/// returns `Ok`, so it is wrapped in [`ManuallyDrop`] and must never be dropped.
+///
+/// # Safety
+///
+/// On success every boot service is gone: no heap allocation, no dropping heap-backed
+/// values, no protocol calls. Shut down anything that logs through boot services (such
+/// as `effie-log`) before calling this, since logging would change the memory map.
+pub unsafe fn exit_boot_services() -> Result<ManuallyDrop<MemoryMap>> {
+    const ATTEMPTS: usize = 4;
+
+    let boot_services = system_table().boot_services();
+    let mut last_error = Status::INVALID_PARAMETER;
+
+    for _ in 0..ATTEMPTS {
+        let map = boot_services.get_memory_map()?;
+        match unsafe { boot_services.exit_boot_services(image_handle(), map.map_key) } {
+            Ok(()) => return Ok(ManuallyDrop::new(map)),
+            Err(status) => last_error = status,
+        }
+        if last_error != Status::INVALID_PARAMETER {
+            break;
+        }
+    }
+
+    Err(last_error)
 }
