@@ -216,6 +216,7 @@ impl Tpl {
 }
 
 /// UEFI memory type. Identifies the type of memory region or allocation. (UEFI specification §7.2)
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(transparent)]
 pub struct MemoryType(u32);
 
@@ -272,6 +273,7 @@ impl AllocateType {
 }
 
 /// UEFI physical address. A 64-bit physical memory address.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(transparent)]
 pub struct PhysicalAddress(pub u64);
 
@@ -290,7 +292,7 @@ pub struct VirtualAddress(u64);
 #[repr(C)]
 pub struct MemoryDescriptor {
     /// The type of memory described by this descriptor.
-    pub ty: u32,
+    pub ty: MemoryType,
     /// The physical address of the memory region.
     pub physical_start: PhysicalAddress,
     /// The virtual address of the memory region.
