@@ -18,7 +18,7 @@ serde = ["dep:serde_core"]
 log = ["dep:log"]
 
 [dependencies]
-bitflags = "2.13.0"
+bitflags = "2.13.2"
 effie-macros = { version = "0.1.0", path = "macros" }
 log = { version = "0.4", default-features = false, optional = true }
-serde_core = { version = "1.0.228", default-features = false, optional = true }
+serde_core = { version = "1.0.229", default-features = false, optional = true }
