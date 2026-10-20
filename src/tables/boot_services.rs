@@ -546,21 +546,17 @@ impl BootServices {
     /// (UEFI specification §7.4.1: EFI_BOOT_SERVICES.LoadImage())
     ///
     /// `device_path` is null; the firmware uses the memory-mapped device path.
+    /// The firmware copies `image`, so the buffer may be dropped once this returns.
     /// Start the image with [`start_image`][Self::start_image].
-    pub fn load_image(
-        &self,
-        parent_image_handle: Handle,
-        source_buffer: *const core::ffi::c_void,
-        source_size: usize,
-    ) -> Result<Handle> {
+    pub fn load_image(&self, parent_image_handle: Handle, image: &[u8]) -> Result<Handle> {
         let mut image_handle = Handle::null();
         unsafe {
             (self.load_image)(
                 false,
                 parent_image_handle,
                 core::ptr::null(),
-                source_buffer,
-                source_size,
+                image.as_ptr().cast(),
+                image.len(),
                 &mut image_handle,
             )
         }

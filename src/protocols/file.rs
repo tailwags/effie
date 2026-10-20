@@ -1,6 +1,6 @@
 use core::{
     ffi::c_void,
-    mem::MaybeUninit,
+    mem::{ManuallyDrop, MaybeUninit},
     ops::{Deref, DerefMut},
     ptr::NonNull,
 };
@@ -107,6 +107,17 @@ impl FileHandle {
     /// Returns a mutable reference to the underlying `File`.
     pub const fn get_mut(&mut self) -> &mut File {
         unsafe { self.raw.as_mut() }
+    }
+
+    /// Deletes the file. (UEFI specification §13.5.4)
+    ///
+    /// `Delete` always closes the handle, so this consumes it instead of letting
+    /// [`Drop`] close it a second time. A file that could not be deleted is reported
+    /// by the firmware as a warning, which maps to `Ok(())`.
+    pub fn delete(self) -> Result {
+        let mut this = ManuallyDrop::new(self);
+        let file = this.get_mut();
+        unsafe { (file.delete)(file) }.into_result()
     }
 }
 
@@ -286,11 +297,6 @@ impl File {
         unsafe { (self.get_position)(self, &mut pos) }
             .into_result()
             .map(|_| pos)
-    }
-
-    /// Deletes the file and closes the handle. (UEFI specification §13.5.4)
-    pub fn delete(&mut self) -> Result {
-        unsafe { (self.delete)(self) }.into_result()
     }
 
     /// Flushes all modified data to the file system. (UEFI specification §13.5.15)
