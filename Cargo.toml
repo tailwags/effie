@@ -1,15 +1,26 @@
 [workspace]
 members = ["macros", "log"]
 
-[package]
-name = "effie"
+[workspace.package]
 version = "0.1.0"
 edition = "2024"
 license = "Apache-2.0"
 authors = ["Matilde Morrone <contact@rosymati.com>"]
+repository = "https://github.com/tailwags/effie"
+
+[workspace.dependencies]
+effie = { version = "0.1.0", path = "." }
+effie-macros = { version = "0.1.0", path = "macros" }
+
+[package]
+name = "effie"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
 description = "Idiomatic api to uefi"
 documentation = "https://docs.rs/effie"
-repository = "https://github.com/tailwags/effie"
+repository.workspace = true
 include = ["src/**/*.rs", "README.md", "LICENSE"]
 readme = "README.md"
 
@@ -19,6 +30,6 @@ log = ["dep:log"]
 
 [dependencies]
 bitflags = "2.13.2"
-effie-macros = { version = "0.1.0", path = "macros" }
+effie-macros.workspace = true
 log = { version = "0.4", default-features = false, optional = true }
 serde_core = { version = "1.0.229", default-features = false, optional = true }

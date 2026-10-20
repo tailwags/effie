@@ -1,12 +1,12 @@
 [package]
 name = "effie-macros"
-version = "0.1.0"
-edition = "2024"
-license = "Apache-2.0"
-authors = ["Matilde Morrone <contact@rosymati.com>"]
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
 description = "Macros for effie"
 documentation = "https://docs.rs/effie-macros"
-repository = "https://github.com/tailwags/effie"
+repository.workspace = true
 include = ["src/**/*.rs", "../README.md", "LICENSE"]
 readme = "../README.md"
 
