@@ -228,6 +228,12 @@ pub fn take_history() -> (&'static [u8], &'static [u8]) {
     history::take()
 }
 
+/// Returns a copy of the history so far, starting at a whole line, and keeps
+/// recording. Empty if history is off or was already taken.
+pub fn copy_history() -> alloc::vec::Vec<u8> {
+    history::copy()
+}
+
 struct Logger;
 
 impl Log for Logger {

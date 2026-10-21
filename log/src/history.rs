@@ -2,9 +2,11 @@
 //!
 //! UEFI boot services run on a single processor, so `push` calls never
 //! overlap. `take` hands the buffer out for good: `push` stops writing to it,
-//! so the returned slices are never aliased by a `&mut`.
+//! so the returned slices are never aliased by a `&mut`. `copy` only borrows
+//! the buffer while copying into memory it allocated beforehand, so nothing
+//! can log (and `push`) in between.
 
-use alloc::{boxed::Box, vec};
+use alloc::{boxed::Box, vec, vec::Vec};
 use core::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
 
 /// The leaked buffer; null before `init` and after `take`.
@@ -46,6 +48,27 @@ pub fn take() -> (&'static [u8], &'static [u8]) {
     // SAFETY: `init` leaked `CAPACITY` bytes at `ptr`, and after the swap
     // `push` never writes to them again.
     let data = unsafe { core::slice::from_raw_parts(ptr, CAPACITY.load(Ordering::Relaxed)) };
+    split(data)
+}
+
+pub fn copy() -> Vec<u8> {
+    // Allocated first: the allocator may log, which pushes.
+    let mut out = Vec::with_capacity(CAPACITY.load(Ordering::Relaxed));
+    let ptr = DATA.load(Ordering::Relaxed);
+    if ptr.is_null() {
+        return out;
+    }
+    // SAFETY: `init` leaked `CAPACITY` bytes at `ptr`, and nothing below
+    // allocates or logs, so `push` cannot run while `data` is alive.
+    let data = unsafe { core::slice::from_raw_parts(ptr, CAPACITY.load(Ordering::Relaxed)) };
+    let (older, newer) = split(data);
+    out.extend_from_slice(older);
+    out.extend_from_slice(newer);
+    out
+}
+
+/// Returns the buffer's contents as `(older, newer)`, starting at a whole line.
+fn split(data: &[u8]) -> (&[u8], &[u8]) {
     let total = TOTAL.load(Ordering::Relaxed);
     if total <= data.len() {
         return (&data[..total], &[]);
