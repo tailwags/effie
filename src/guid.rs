@@ -459,10 +459,24 @@ impl Default for Guid {
 
 impl Display for Guid {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let ascii = self.to_ascii_hex_lower();
-        // utf8: to_ascii_hex_lower only emits bytes in 0..=127.
-        let s = str::from_utf8(&ascii).unwrap();
-        f.write_str(s)
+        // Byte order of the text form: the first three fields are little-endian.
+        const ORDER: [u8; 16] = [3, 2, 1, 0, 5, 4, 7, 6, 8, 9, 10, 11, 12, 13, 14, 15];
+
+        // Not `to_ascii_hex_lower`, which is unrolled and much larger.
+        let bytes = self.to_bytes();
+        for (i, &index) in ORDER.iter().enumerate() {
+            if matches!(i, 4 | 6 | 8 | 10) {
+                f.write_str("-")?;
+            }
+
+            let (high, low) = byte_to_hex(bytes[usize::from(index) % 16]);
+            let pair = [high, low];
+
+            // SAFETY: `byte_to_hex` only emits ASCII hex digits.
+            f.write_str(unsafe { str::from_utf8_unchecked(&pair) })?;
+        }
+
+        Ok(())
     }
 }
 
