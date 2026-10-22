@@ -502,10 +502,7 @@ impl BootServices {
         let raw = unsafe { protocol.assume_init() };
 
         if raw.is_null() {
-            log::warn!(
-                "open_protocol: firmware returned null interface for guid={}",
-                P::GUID
-            );
+            return Err(null_interface("open_protocol", &P::GUID));
         }
 
         Protocol::new(raw, *handle, *agent)
@@ -529,10 +526,7 @@ impl BootServices {
         let raw = unsafe { protocol.assume_init() };
 
         if raw.is_null() {
-            log::warn!(
-                "locate_protocol: firmware returned null interface for guid={}",
-                P::GUID
-            );
+            return Err(null_interface("locate_protocol", &P::GUID));
         }
 
         Protocol::new_unscoped(raw)
@@ -658,4 +652,13 @@ impl BootServices {
     pub fn stall(&self, microseconds: usize) -> Result {
         unsafe { (self.stall)(microseconds) }.into_result()
     }
+}
+
+/// Reports a firmware that returned success but no interface. Kept out of
+/// line and non-generic, so the warning is not repeated for every protocol.
+#[cold]
+#[inline(never)]
+fn null_interface(operation: &str, guid: &Guid) -> Status {
+    log::warn!("{operation}: firmware returned null interface for guid={guid}");
+    Status::UNSUPPORTED
 }
