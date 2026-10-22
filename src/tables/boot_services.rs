@@ -592,8 +592,7 @@ impl BootServices {
         // Add slack for the allocation below, which extends the map.
         map_size += descriptor_size * 2;
 
-        let mut buffer: Vec<u8> = Vec::with_capacity(map_size);
-        buffer.resize(map_size, 0u8);
+        let mut buffer: Vec<u8> = alloc::vec![0u8; map_size];
 
         // Second call fills the buffer.
         let fill_status = unsafe {

@@ -446,7 +446,7 @@ impl RuntimeServices {
         name_buf: &'buf mut [u16],
         vendor_guid: &mut Guid,
     ) -> Result<&'buf WStr> {
-        let mut size = name_buf.len() * core::mem::size_of::<u16>();
+        let mut size = core::mem::size_of_val(name_buf);
         // SAFETY: caller guarantees `name_buf` is valid and large enough.
         let status =
             unsafe { (self.get_next_variable_name)(&mut size, name_buf.as_mut_ptr(), vendor_guid) };
@@ -516,7 +516,12 @@ impl RuntimeServices {
         unsafe {
             (self.reset_system)(reset_type, Status::SUCCESS, 0, core::ptr::null());
         }
-        loop {}
+
+        // A failed `ResetSystem` (e.g. an unsupported reset type) leaves the
+        // platform running; park rather than return from a `!` function.
+        loop {
+            core::hint::spin_loop();
+        }
     }
 
     /// Passes capsule(s) to the firmware. If any capsule has

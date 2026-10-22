@@ -184,7 +184,6 @@ impl GraphicsOutput {
     }
 
     /// Returns mode information for the given mode number. (UEFI specification §12.9.2.1)
-
     pub fn query_mode(&self, mode_number: u32) -> Result<GraphicsOutputModeInformation> {
         let mut size: usize = 0;
         let mut info: *const GraphicsOutputModeInformation = core::ptr::null();
@@ -263,6 +262,9 @@ impl GraphicsOutput {
     ///
     /// `buffer` must contain at least `(dest_y + height - 1) * stride + dest_x + width`
     /// pixels (where `stride = buffer_width` when non-zero, otherwise `width`).
+    // The arity mirrors `EFI_GRAPHICS_OUTPUT_PROTOCOL.Blt`, which takes nine
+    // parameters; grouping them would only obscure the spec mapping.
+    #[allow(clippy::too_many_arguments)]
     pub fn blt_video_to_buffer(
         &mut self,
         buffer: &mut [BltPixel],
@@ -313,6 +315,9 @@ impl GraphicsOutput {
     ///
     /// `buffer` must contain at least `(src_y + height - 1) * stride + src_x + width`
     /// pixels (where `stride = buffer_width` when non-zero, otherwise `width`).
+    // The arity mirrors `EFI_GRAPHICS_OUTPUT_PROTOCOL.Blt`, which takes nine
+    // parameters; grouping them would only obscure the spec mapping.
+    #[allow(clippy::too_many_arguments)]
     pub fn blt_buffer_to_video(
         &mut self,
         buffer: &[BltPixel],
