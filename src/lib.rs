@@ -145,9 +145,10 @@ pub fn system_table() -> &'static SystemTable {
     // Safety: the pointer was stored by efi_main from a firmware-provided
     // `*mut SystemTable` that is valid for the lifetime of the UEFI session.
     unsafe {
-        system_table_raw()
-            .expect("system_table() called before efi_main")
-            .as_ref()
+        match system_table_raw() {
+            Some(table) => table.as_ref(),
+            None => not_initialized(),
+        }
     }
 }
 
@@ -174,7 +175,18 @@ pub fn image_handle_raw() -> Option<Handle> {
 ///
 /// Panics if called before `efi_main` has written the handle.
 pub fn image_handle() -> Handle {
-    image_handle_raw().expect("image_handle() called before efi_main")
+    match image_handle_raw() {
+        Some(handle) => handle,
+        None => not_initialized(),
+    }
+}
+
+/// Shared by [`system_table`] and [`image_handle`], so that each of their many
+/// inlined call sites only needs a branch to it.
+#[cold]
+#[inline(never)]
+fn not_initialized() -> ! {
+    panic!("effie used before efi_main")
 }
 
 /// Exits boot services on behalf of the running image and returns the final memory map.
