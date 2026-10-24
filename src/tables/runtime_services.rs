@@ -1,8 +1,6 @@
 use core::{ffi::c_void, mem::MaybeUninit};
 
-use bitflags::bitflags;
-
-use crate::{Guid, Result, Status, WStr, types::Time};
+use crate::{Guid, Result, Status, WStr, bits::flags, types::Time};
 
 use super::{MemoryDescriptor, TableHeader};
 
@@ -45,13 +43,12 @@ pub struct TimeCapabilities {
     _pad: [u8; 3],
 }
 
-bitflags! {
+flags! {
     /// UEFI variable attribute bitmask.
     ///
     /// Controls persistence, access, and authentication of UEFI variables.
     /// (UEFI specification §8.2)
-    #[repr(transparent)]
-    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    #[derive(Clone, Copy, PartialEq, Eq)]
     pub struct VariableAttributes: u32 {
         /// Variable is stored in non-volatile storage.
         const NON_VOLATILE                             = 0x0000_0001;
@@ -89,12 +86,11 @@ pub struct CapsuleHeader {
     pub capsule_image_size: u32,
 }
 
-bitflags! {
+flags! {
     /// Flags for [`CapsuleHeader::flags`].
     ///
     /// (UEFI specification §8.5.3)
-    #[repr(transparent)]
-    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    #[derive(Clone, Copy, PartialEq, Eq)]
     pub struct CapsuleFlags: u32 {
         /// Indicates that the firmware should process the capsule on the next
         /// system reset. Requires NVRAM storage of the scatter-gather list.
@@ -108,12 +104,11 @@ bitflags! {
     }
 }
 
-bitflags! {
+flags! {
     /// Disposition flags for [`RuntimeServices::convert_pointer`].
     ///
     /// (UEFI specification §8.4.2)
-    #[repr(transparent)]
-    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    #[derive(Clone, Copy, PartialEq, Eq)]
     pub struct ConvertPointerFlags: usize {
         /// If set and `*Address` is `NULL`, the call succeeds without
         /// converting the pointer. Allows optional pointers in data structures

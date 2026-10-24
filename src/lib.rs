@@ -48,6 +48,7 @@ use core::{
 };
 
 mod allocator;
+mod bits;
 mod protocol;
 mod status;
 mod types;

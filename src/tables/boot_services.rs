@@ -2,11 +2,9 @@ use core::{ffi::c_void, mem::MaybeUninit, ptr::null_mut};
 
 use alloc::vec::Vec;
 
-use bitflags::bitflags;
-
 use crate::{
-    Event, Guid, Handle, HasProtocol, Protocol, Result, Status, log, protocols::DevicePath,
-    tables::TableHeader,
+    Event, Guid, Handle, HasProtocol, Protocol, Result, Status, bits::flags, log,
+    protocols::DevicePath, tables::TableHeader,
 };
 
 use super::Signature;
@@ -332,11 +330,10 @@ impl MemoryMap {
 /// UEFI event notification function. Called when an event is signaled. (UEFI specification §7.1.1)
 pub type EventNotify = unsafe extern "efiapi" fn(event: Event, context: *mut c_void);
 
-bitflags! {
+flags! {
     /// Attributes for `OpenProtocol` that specify how a protocol interface is being opened.
     /// (UEFI specification §7.3.9)
-    #[repr(transparent)]
-    #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+    #[derive(Clone, Copy, PartialEq, Eq)]
     pub struct OpenProtocolAttributes: u32 {
         /// Open a protocol by handle.
         const BY_HANDLE_PROTOCOL  = 0x00000001;

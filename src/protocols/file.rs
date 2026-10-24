@@ -7,10 +7,7 @@ use core::{
 
 use alloc::vec;
 
-use bitflags::bitflags;
-
-use crate::log;
-use crate::{Guid, HasGuid, Result, Status, Time, WStr, WString};
+use crate::{Guid, HasGuid, Result, Status, Time, WStr, WString, bits::flags, log};
 
 /// UEFI File Protocol. Provides file I/O operations on a UEFI-compliant file system.
 /// (UEFI specification §13.5.1: EFI_FILE_PROTOCOL)
@@ -143,11 +140,10 @@ impl DerefMut for FileHandle {
     }
 }
 
-bitflags! {
+flags! {
     /// UEFI file open mode. Specifies the access mode for opening a file.
     /// (UEFI specification §13.5.2)
-    #[repr(transparent)]
-    #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+    #[derive(Clone, Copy, PartialEq, Eq)]
     pub struct FileMode: u64 {
         /// Opens the file for reading.
         const READ   = 0x0000000000000001;
